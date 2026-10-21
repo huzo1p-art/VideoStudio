@@ -91,8 +91,8 @@ jobs:
                   applicationId = "com.videostudio.app"
                   minSdk = 24
                   targetSdk = 34
-                  versionCode = 4
-                  versionName = "4.0"
+                  versionCode = 5
+                  versionName = "5.0"
               }
 
               buildTypes {
@@ -110,7 +110,6 @@ jobs:
                   targetCompatibility = JavaVersion.VERSION_17
               }
               kotlinOptions { jvmTarget = "17" }
-
               buildFeatures { buildConfig = true }
           }
 
@@ -135,6 +134,8 @@ jobs:
 
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.VIBRATE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                  android:maxSdkVersion="28" />
 
               <application
                   android:allowBackup="true"
@@ -142,6 +143,7 @@ jobs:
                   android:label="@string/app_name"
                   android:roundIcon="@mipmap/ic_launcher_round"
                   android:supportsRtl="true"
+                  android:requestLegacyExternalStorage="true"
                   android:theme="@style/Theme.VideoStudio"
                   android:usesCleartextTraffic="true">
 
@@ -221,9 +223,12 @@ jobs:
           cat > app/src/main/java/com/videostudio/app/MainActivity.kt << '__VS_EOF__'
           package com.videostudio.app
 
+          import android.Manifest
           import android.annotation.SuppressLint
           import android.content.Intent
+          import android.content.pm.PackageManager
           import android.net.Uri
+          import android.os.Build
           import android.os.Bundle
           import android.webkit.ValueCallback
           import android.webkit.WebChromeClient
@@ -233,6 +238,7 @@ jobs:
           import androidx.activity.result.ActivityResultLauncher
           import androidx.activity.result.contract.ActivityResultContracts
           import androidx.appcompat.app.AppCompatActivity
+          import androidx.core.content.ContextCompat
 
           class MainActivity : AppCompatActivity() {
 
@@ -251,6 +257,15 @@ jobs:
               @SuppressLint("SetJavaScriptEnabled")
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                      if (ContextCompat.checkSelfPermission(
+                              this, Manifest.permission.WRITE_EXTERNAL_STORAGE
+                          ) != PackageManager.PERMISSION_GRANTED
+                      ) {
+                          requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 100)
+                      }
+                  }
 
                   webView = WebView(this)
                   setContentView(webView)
@@ -319,13 +334,18 @@ jobs:
           cat > app/src/main/java/com/videostudio/app/WebAppInterface.kt << '__VS_EOF__'
           package com.videostudio.app
 
+          import android.content.ContentValues
           import android.content.Context
           import android.os.Build
+          import android.os.Environment
           import android.os.VibrationEffect
           import android.os.Vibrator
           import android.os.VibratorManager
+          import android.provider.MediaStore
+          import android.util.Base64
           import android.webkit.JavascriptInterface
           import android.widget.Toast
+          import java.io.File
 
           class WebAppInterface(private val context: Context) {
 
@@ -356,6 +376,55 @@ jobs:
                       vibrator.vibrate(ms.toLong())
                   }
               }
+
+              @JavascriptInterface
+              fun saveVideo(base64Data: String, fileName: String, mime: String) {
+                  try {
+                      val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+                      val name = if (fileName.isBlank())
+                          "VideoStudio_${System.currentTimeMillis()}.webm" else fileName
+
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                          val resolver = context.contentResolver
+                          val values = ContentValues().apply {
+                              put(MediaStore.Video.Media.DISPLAY_NAME, name)
+                              put(MediaStore.Video.Media.MIME_TYPE, mime)
+                              put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/VideoStudio")
+                              put(MediaStore.Video.Media.IS_PENDING, 1)
+                          }
+                          val uri = resolver.insert(
+                              MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values
+                          )
+                          if (uri != null) {
+                              resolver.openOutputStream(uri)?.use { it.write(bytes) }
+                              values.clear()
+                              values.put(MediaStore.Video.Media.IS_PENDING, 0)
+                              resolver.update(uri, values, null, null)
+                              notify("تم حفظ الفيديو في المعرض")
+                          } else {
+                              notify("فشل إنشاء الملف")
+                          }
+                      } else {
+                          val dir = File(
+                              Environment.getExternalStoragePublicDirectory(
+                                  Environment.DIRECTORY_MOVIES
+                              ), "VideoStudio"
+                          )
+                          dir.mkdirs()
+                          val file = File(dir, name)
+                          file.writeBytes(bytes)
+                          notify("تم الحفظ في: ${file.absolutePath}")
+                      }
+                  } catch (e: Exception) {
+                      notify("فشل الحفظ: ${e.message}")
+                  }
+              }
+
+              private fun notify(msg: String) {
+                  (context as? android.app.Activity)?.runOnUiThread {
+                      Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                  }
+              }
           }
           __VS_EOF__
 
@@ -370,18 +439,14 @@ jobs:
           </head>
           <body>
 
-            <!-- الرئيسية -->
             <div class="screen active" id="screen-home">
               <header class="app-header">
                 <div>
                   <div class="greeting">أهلاً بك 👋</div>
                   <h1 class="app-title">استوديو الفيديو</h1>
                 </div>
-                <button class="icon-btn" onclick="toggleTheme()" title="الوضع">
-                  <span id="theme-icon">🌙</span>
-                </button>
+                <button class="icon-btn" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
               </header>
-
               <div class="quick-actions">
                 <button class="action-card action-primary" onclick="startNewProject()">
                   <div class="action-icon">🎬</div>
@@ -394,7 +459,6 @@ jobs:
                   <div class="action-sub" id="projects-count">0 مشروع</div>
                 </button>
               </div>
-
               <section class="section">
                 <h2 class="section-title">أدوات سريعة</h2>
                 <div class="tools-grid">
@@ -404,11 +468,10 @@ jobs:
                   <div class="tool" onclick="soon('موسيقى')"><div class="tool-icon">🎵</div><div>موسيقى</div></div>
                   <div class="tool" onclick="soon('فلاتر')"><div class="tool-icon">🎨</div><div>فلاتر</div></div>
                   <div class="tool" onclick="soon('تحويل صيغة')"><div class="tool-icon">🔄</div><div>تحويل</div></div>
-                  <div class="tool" onclick="soon('ضغط الفيديو')"><div class="tool-icon">📉</div><div>ضغط</div></div>
-                  <div class="tool" onclick="soon('صورة مصغرة')"><div class="tool-icon">🖼️</div><div>غلاف</div></div>
+                  <div class="tool" onclick="soon('ضغط')"><div class="tool-icon">📉</div><div>ضغط</div></div>
+                  <div class="tool" onclick="soon('غلاف')"><div class="tool-icon">🖼️</div><div>غلاف</div></div>
                 </div>
               </section>
-
               <section class="section">
                 <h2 class="section-title">آخر المشاريع</h2>
                 <div id="recent-projects" class="empty-state">
@@ -419,19 +482,14 @@ jobs:
               </section>
             </div>
 
-            <!-- المشاريع -->
             <div class="screen" id="screen-projects">
-              <header class="app-header">
-                <h1 class="app-title">مشاريعي</h1>
-              </header>
+              <header class="app-header"><h1 class="app-title">مشاريعي</h1></header>
               <div id="projects-list" class="empty-state">
                 <div class="empty-icon">📂</div>
                 <div class="empty-text">لا توجد مشاريع</div>
-                <div class="empty-hint">ستظهر مشاريعك هنا بعد إنشائها</div>
               </div>
             </div>
 
-            <!-- مشروع مفتوح -->
             <div class="screen" id="screen-project">
               <header class="app-header">
                 <button class="icon-btn" onclick="backToProjects()">←</button>
@@ -441,11 +499,12 @@ jobs:
                 </div>
                 <button class="icon-btn" onclick="deleteCurrentProject()" title="حذف">🗑️</button>
               </header>
-
-              <button class="add-clip-btn" onclick="addClipToProject()">
-                <span class="plus">+</span> إضافة مقطع فيديو
-              </button>
-
+              <div style="display:flex;gap:10px;margin-bottom:16px">
+                <button class="add-clip-btn" style="flex:1" onclick="addClipToProject()">
+                  <span class="plus">+</span> إضافة مقطع
+                </button>
+                <button class="add-clip-btn" style="flex:0;padding:16px 20px;background:linear-gradient(135deg,#10B981,#059669)" onclick="openEditor()">✏️</button>
+              </div>
               <div id="clips-list" class="clips-list">
                 <div class="empty-state">
                   <div class="empty-icon">🎞️</div>
@@ -455,22 +514,46 @@ jobs:
               </div>
             </div>
 
-            <!-- الإعدادات -->
-            <div class="screen" id="screen-settings">
+            <!-- شاشة المحرر -->
+            <div class="screen" id="screen-editor">
               <header class="app-header">
-                <h1 class="app-title">الإعدادات</h1>
+                <button class="icon-btn" onclick="closeEditor()">←</button>
+                <div style="flex:1;margin-right:12px">
+                  <div class="greeting">المحرر</div>
+                  <h1 class="app-title" id="editor-title">—</h1>
+                </div>
+                <button class="icon-btn" onclick="exportProject()" title="تصدير">📤</button>
               </header>
 
+              <div class="preview-wrap">
+                <canvas id="preview-canvas" width="640" height="360"></canvas>
+                <div class="preview-progress"><div id="preview-progress-bar"></div></div>
+                <button class="preview-play" id="preview-play" onclick="previewProject()">▶️</button>
+              </div>
+
+              <div class="editor-tools">
+                <button class="tool-btn" onclick="openOverlayModal()">
+                  <div class="tool-btn-icon">📝</div><div class="tool-btn-label">نص</div>
+                </button>
+                <button class="tool-btn" onclick="showOverlaysList()">
+                  <div class="tool-btn-icon">📋</div><div class="tool-btn-label">النصوص</div>
+                </button>
+              </div>
+
+              <h3 class="section-title" style="margin-top:20px">المقاطع</h3>
+              <div id="editor-timeline" class="editor-timeline"></div>
+            </div>
+
+            <div class="screen" id="screen-settings">
+              <header class="app-header"><h1 class="app-title">الإعدادات</h1></header>
               <div class="settings-list">
                 <div class="setting-item" onclick="toggleTheme()">
                   <div class="setting-icon">🌓</div>
                   <div class="setting-info">
                     <div class="setting-name">الوضع الداكن</div>
-                    <div class="setting-desc">تبديل بين الفاتح والداكن</div>
-                  </div>
-                  <div class="toggle"></div>
+                    <div class="setting-desc">تبديل الفاتح والداكن</div>
+                  </div><div class="toggle"></div>
                 </div>
-
                 <div class="setting-item">
                   <div class="setting-icon">ℹ️</div>
                   <div class="setting-info">
@@ -478,7 +561,6 @@ jobs:
                     <div class="setting-desc" id="app-version">—</div>
                   </div>
                 </div>
-
                 <div class="setting-item" onclick="clearStorage()">
                   <div class="setting-icon">🗑️</div>
                   <div class="setting-info">
@@ -486,174 +568,154 @@ jobs:
                     <div class="setting-desc">حذف المشاريع والمقاطع</div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <div class="setting-item" onclick="testBridge()">
-                  <div class="setting-icon">🔔</div>
-                  <div class="setting-info">
-                    <div class="setting-name">اختبار الجسر</div>
-                    <div class="setting-desc">تأكد أن Kotlin ↔ JS يعمل</div>
-                  </div>
+            <!-- Modal: قص -->
+            <div class="modal hidden" id="trim-modal">
+              <div class="modal-content">
+                <h2>تعديل القص</h2>
+                <div class="trim-row">
+                  <label>البداية: <span id="trim-start-val">0.0s</span></label>
+                  <input type="range" id="trim-start" min="0" max="100" step="0.5" value="0">
+                </div>
+                <div class="trim-row">
+                  <label>النهاية: <span id="trim-end-val">0.0s</span></label>
+                  <input type="range" id="trim-end" min="0" max="100" step="0.5" value="100">
+                </div>
+                <div class="modal-buttons">
+                  <button onclick="cancelTrim()">إلغاء</button>
+                  <button class="primary" onclick="saveTrim()">حفظ</button>
                 </div>
               </div>
             </div>
 
-            <!-- شريط التنقل -->
+            <!-- Modal: نص -->
+            <div class="modal hidden" id="overlay-modal">
+              <div class="modal-content">
+                <h2>إضافة نص</h2>
+                <input type="text" id="overlay-text" placeholder="اكتب النص هنا" maxlength="60">
+                <div class="color-picker" id="color-picker">
+                  <button data-color="#FFFFFF" style="background:#FFFFFF" class="active"></button>
+                  <button data-color="#FBBF24" style="background:#FBBF24"></button>
+                  <button data-color="#EF4444" style="background:#EF4444"></button>
+                  <button data-color="#10B981" style="background:#10B981"></button>
+                  <button data-color="#3B82F6" style="background:#3B82F6"></button>
+                </div>
+                <div class="modal-buttons">
+                  <button onclick="cancelOverlay()">إلغاء</button>
+                  <button class="primary" onclick="saveOverlay()">إضافة</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal: قائمة النصوص -->
+            <div class="modal hidden" id="overlays-list-modal">
+              <div class="modal-content">
+                <h2>النصوص المضافة</h2>
+                <div id="overlays-list-content"></div>
+                <div class="modal-buttons">
+                  <button onclick="hideOverlaysList()">إغلاق</button>
+                </div>
+              </div>
+            </div>
+
             <nav class="bottom-nav">
               <button class="nav-btn active" data-screen="home" onclick="switchScreen('home')">
-                <span class="nav-icon">🏠</span>
-                <span class="nav-label">الرئيسية</span>
+                <span class="nav-icon">🏠</span><span class="nav-label">الرئيسية</span>
               </button>
               <button class="nav-btn" data-screen="projects" onclick="switchScreen('projects')">
-                <span class="nav-icon">📁</span>
-                <span class="nav-label">مشاريعي</span>
+                <span class="nav-icon">📁</span><span class="nav-label">مشاريعي</span>
               </button>
               <button class="nav-btn" data-screen="settings" onclick="switchScreen('settings')">
-                <span class="nav-icon">⚙️</span>
-                <span class="nav-label">الإعدادات</span>
+                <span class="nav-icon">⚙️</span><span class="nav-label">الإعدادات</span>
               </button>
             </nav>
 
             <script src="js/db.js"></script>
             <script src="js/app.js"></script>
             <script src="js/gallery.js"></script>
+            <script src="js/editor.js"></script>
           </body>
           </html>
           __VS_EOF__
 
           cat > app/src/main/assets/css/style.css << '__VS_EOF__'
           * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
           :root {
-            --bg: #0F172A;
-            --surface: #1E293B;
-            --surface-2: #334155;
-            --text: #F1F5F9;
-            --text-muted: #94A3B8;
-            --primary: #6366F1;
-            --primary-dark: #4F46E5;
-            --accent: #10B981;
-            --danger: #EF4444;
+            --bg: #0F172A; --surface: #1E293B; --surface-2: #334155;
+            --text: #F1F5F9; --text-muted: #94A3B8;
+            --primary: #6366F1; --primary-dark: #4F46E5;
+            --accent: #10B981; --danger: #EF4444;
             --border: rgba(148,163,184,0.15);
           }
-
           body.light {
-            --bg: #F8FAFC;
-            --surface: #FFFFFF;
-            --surface-2: #F1F5F9;
-            --text: #0F172A;
-            --text-muted: #64748B;
+            --bg: #F8FAFC; --surface: #FFFFFF; --surface-2: #F1F5F9;
+            --text: #0F172A; --text-muted: #64748B;
             --border: rgba(15,23,42,0.1);
           }
-
           body {
             font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 0 0 90px 0;
-            min-height: 100vh;
+            background: var(--bg); color: var(--text); margin: 0;
+            padding: 0 0 90px 0; min-height: 100vh;
             transition: background 0.3s, color 0.3s;
           }
-
           .screen { display: none; padding: 20px 20px 10px; animation: fadeIn 0.25s; }
           .screen.active { display: block; }
           @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-
-          .app-header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 24px;
-          }
+          .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
           .greeting { font-size: 0.85em; color: var(--text-muted); margin-bottom: 2px; }
           .app-title { font-size: 1.6em; margin: 0; font-weight: 700; }
-
           .icon-btn {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            width: 44px; height: 44px;
-            border-radius: 12px;
-            font-size: 1.3em;
-            color: var(--text);
-            cursor: pointer;
+            background: var(--surface); border: 1px solid var(--border);
+            width: 44px; height: 44px; border-radius: 12px;
+            font-size: 1.3em; color: var(--text); cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             transition: transform 0.15s;
           }
           .icon-btn:active { transform: scale(0.92); }
-
-          .quick-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 28px;
-          }
-
+          .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
           .action-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 18px 16px;
-            text-align: right;
-            color: var(--text);
-            cursor: pointer;
-            transition: transform 0.15s;
-            min-height: 120px;
-            display: flex; flex-direction: column;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 18px; padding: 18px 16px; text-align: right;
+            color: var(--text); cursor: pointer; transition: transform 0.15s;
+            min-height: 120px; display: flex; flex-direction: column;
             justify-content: space-between;
           }
           .action-card:active { transform: scale(0.97); }
           .action-card.action-primary {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            border: none;
-            color: #fff;
+            border: none; color: #fff;
           }
           .action-icon { font-size: 1.8em; }
           .action-label { font-weight: 700; font-size: 1.05em; margin-top: 8px; }
           .action-sub { font-size: 0.8em; opacity: 0.75; margin-top: 2px; }
-
           .section { margin-bottom: 28px; }
           .section-title { font-size: 1.05em; font-weight: 700; margin: 0 0 14px; }
-
-          .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-          }
+          .tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
           .tool {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 14px 6px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 0.75em;
-            color: var(--text);
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 14px; padding: 14px 6px; text-align: center;
+            cursor: pointer; font-size: 0.75em; color: var(--text);
             transition: transform 0.15s;
           }
           .tool:active { transform: scale(0.92); }
           .tool-icon { font-size: 1.5em; margin-bottom: 6px; }
-
           .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            background: var(--surface);
-            border: 1px dashed var(--border);
+            text-align: center; padding: 40px 20px;
+            background: var(--surface); border: 1px dashed var(--border);
             border-radius: 18px;
           }
           .empty-icon { font-size: 2.5em; margin-bottom: 10px; opacity: 0.5; }
           .empty-text { font-weight: 600; margin-bottom: 4px; }
           .empty-hint { font-size: 0.85em; color: var(--text-muted); }
-
           .settings-list {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 18px; overflow: hidden;
           }
           .setting-item {
-            display: flex;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
+            display: flex; align-items: center; padding: 16px;
+            border-bottom: 1px solid var(--border); cursor: pointer;
             transition: background 0.15s;
           }
           .setting-item:last-child { border-bottom: none; }
@@ -662,168 +724,256 @@ jobs:
           .setting-info { flex: 1; }
           .setting-name { font-weight: 600; margin-bottom: 2px; }
           .setting-desc { font-size: 0.8em; color: var(--text-muted); }
-
           .toggle {
-            width: 44px; height: 26px;
-            background: var(--surface-2);
-            border-radius: 13px;
-            position: relative;
-            transition: background 0.2s;
+            width: 44px; height: 26px; background: var(--surface-2);
+            border-radius: 13px; position: relative; transition: background 0.2s;
           }
           .toggle::after {
-            content: '';
-            position: absolute;
-            top: 3px; right: 3px;
-            width: 20px; height: 20px;
-            background: #fff;
-            border-radius: 50%;
-            transition: transform 0.2s;
+            content: ''; position: absolute;
+            top: 3px; right: 3px; width: 20px; height: 20px;
+            background: #fff; border-radius: 50%; transition: transform 0.2s;
           }
           body:not(.light) .toggle { background: var(--primary); }
           body:not(.light) .toggle::after { transform: translateX(-18px); }
-
           .bottom-nav {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            display: flex;
-            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--surface); border-top: 1px solid var(--border);
+            display: flex; padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
             z-index: 100;
           }
           .nav-btn {
-            flex: 1;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            padding: 8px 4px;
-            cursor: pointer;
+            flex: 1; background: none; border: none; color: var(--text-muted);
+            padding: 8px 4px; cursor: pointer;
             display: flex; flex-direction: column;
-            align-items: center; gap: 3px;
-            transition: color 0.2s;
+            align-items: center; gap: 3px; transition: color 0.2s;
           }
           .nav-btn.active { color: var(--primary); }
           .nav-icon { font-size: 1.3em; }
           .nav-label { font-size: 0.7em; font-weight: 600; }
-
-          /* === الدفعة 4: بطاقات المشاريع والمقاطع === */
           .project-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 14px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-            cursor: pointer;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 14px;
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 10px; cursor: pointer;
             transition: transform 0.15s;
           }
           .project-card:active { transform: scale(0.98); }
           .project-thumb {
-            width: 56px; height: 56px;
-            border-radius: 12px;
+            width: 56px; height: 56px; border-radius: 12px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.6em;
-            flex-shrink: 0;
+            font-size: 1.6em; flex-shrink: 0;
           }
           .project-info { flex: 1; min-width: 0; }
           .project-name {
-            font-weight: 700;
-            margin-bottom: 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-weight: 700; margin-bottom: 4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
           }
-          .project-meta {
-            font-size: 0.75em;
-            color: var(--text-muted);
-          }
-
+          .project-meta { font-size: 0.75em; color: var(--text-muted); }
           .add-clip-btn {
             width: 100%;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #fff;
-            border: none;
-            border-radius: 16px;
-            padding: 16px;
-            font-size: 1.05em;
-            font-weight: 700;
-            cursor: pointer;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: transform 0.15s;
+            color: #fff; border: none; border-radius: 16px; padding: 16px;
+            font-size: 1.05em; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; transition: transform 0.15s;
           }
           .add-clip-btn:active { transform: scale(0.97); }
           .add-clip-btn .plus { font-size: 1.4em; }
-
           .clips-list { display: flex; flex-direction: column; gap: 10px; }
-
           .clip-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 10px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 10px;
+            display: flex; align-items: center; gap: 12px;
           }
           .clip-thumb {
-            width: 80px; height: 60px;
-            border-radius: 10px;
-            background: #000;
-            object-fit: cover;
-            flex-shrink: 0;
+            width: 80px; height: 60px; border-radius: 10px;
+            background: #000; object-fit: cover; flex-shrink: 0;
           }
           .clip-info { flex: 1; min-width: 0; }
           .clip-name {
-            font-weight: 600;
-            font-size: 0.9em;
-            margin-bottom: 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-weight: 600; font-size: 0.9em; margin-bottom: 4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
           }
-          .clip-meta {
-            font-size: 0.72em;
-            color: var(--text-muted);
-          }
+          .clip-meta { font-size: 0.72em; color: var(--text-muted); }
           .clip-delete {
-            background: transparent;
-            border: none;
-            color: var(--danger);
-            font-size: 1.3em;
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 8px;
+            background: transparent; border: none; color: var(--danger);
+            font-size: 1.3em; cursor: pointer; padding: 6px; border-radius: 8px;
           }
           .clip-delete:active { background: rgba(239,68,68,0.1); }
-
           .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(15,23,42,0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            color: #fff;
-            font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999; color: #fff; font-weight: 600;
+            flex-direction: column; gap: 16px; padding: 20px;
+            text-align: center;
           }
           .loading-overlay.hidden { display: none; }
+          .loading-bar {
+            width: 200px; height: 6px; background: rgba(255,255,255,0.15);
+            border-radius: 3px; overflow: hidden;
+          }
+          .loading-bar > div {
+            height: 100%; background: var(--primary); width: 0%;
+            transition: width 0.2s;
+          }
+          /* === المحرر === */
+          .preview-wrap {
+            position: relative; margin-bottom: 16px;
+            border-radius: 16px; overflow: hidden; background: #000;
+          }
+          #preview-canvas {
+            width: 100%; display: block; aspect-ratio: 16/9;
+            background: #000;
+          }
+          .preview-progress {
+            height: 4px; background: rgba(255,255,255,0.15);
+          }
+          .preview-progress > div {
+            height: 100%; background: var(--primary); width: 0%;
+            transition: width 0.1s;
+          }
+          .preview-play {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(99,102,241,0.95); color: #fff;
+            border: none; width: 56px; height: 56px;
+            border-radius: 50%; font-size: 1.4em;
+            cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            transition: transform 0.15s;
+          }
+          .preview-play:active { transform: translateX(-50%) scale(0.92); }
+          .editor-tools {
+            display: flex; gap: 10px; margin-bottom: 16px;
+          }
+          .tool-btn {
+            flex: 1; background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px; padding: 14px;
+            color: var(--text); cursor: pointer;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 4px;
+            transition: transform 0.15s;
+          }
+          .tool-btn:active { transform: scale(0.94); }
+          .tool-btn-icon { font-size: 1.4em; }
+          .tool-btn-label { font-size: 0.8em; font-weight: 600; }
+          .editor-timeline {
+            display: flex; gap: 10px; overflow-x: auto;
+            padding-bottom: 8px; margin-bottom: 20px;
+          }
+          .editor-timeline::-webkit-scrollbar { height: 4px; }
+          .editor-timeline::-webkit-scrollbar-thumb {
+            background: var(--surface-2); border-radius: 2px;
+          }
+          .timeline-clip {
+            flex-shrink: 0; width: 120px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+            cursor: pointer; transition: transform 0.15s;
+          }
+          .timeline-clip:active { transform: scale(0.95); }
+          .timeline-clip.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.3);
+          }
+          .timeline-thumb {
+            width: 120px; height: 68px; object-fit: cover;
+            background: #000; display: block;
+          }
+          .timeline-info {
+            padding: 6px 8px; font-size: 0.7em;
+            display: flex; justify-content: space-between;
+            color: var(--text-muted);
+          }
+          .timeline-controls {
+            display: flex; border-top: 1px solid var(--border);
+          }
+          .timeline-controls button {
+            flex: 1; background: none; border: none;
+            color: var(--text); padding: 6px 4px;
+            cursor: pointer; font-size: 1em;
+          }
+          .timeline-controls button:active { background: var(--surface-2); }
+          /* === Modals === */
+          .modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 500; padding: 20px;
+            animation: fadeIn 0.2s;
+          }
+          .modal.hidden { display: none; }
+          .modal-content {
+            background: var(--surface); border-radius: 20px;
+            padding: 24px; width: 100%; max-width: 400px;
+            animation: slideUp 0.25s;
+          }
+          @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: none; opacity: 1; }
+          }
+          .modal-content h2 { margin: 0 0 16px; font-size: 1.2em; }
+          .trim-row { margin-bottom: 16px; }
+          .trim-row label {
+            display: block; font-size: 0.85em;
+            color: var(--text-muted); margin-bottom: 6px;
+          }
+          .trim-row input[type="range"] {
+            width: 100%; accent-color: var(--primary);
+          }
+          .modal-content input[type="text"] {
+            width: 100%; background: var(--surface-2);
+            border: 1px solid var(--border); border-radius: 12px;
+            padding: 12px; color: var(--text);
+            font-size: 1em; margin-bottom: 16px;
+          }
+          .color-picker {
+            display: flex; gap: 8px; margin-bottom: 20px;
+            justify-content: center;
+          }
+          .color-picker button {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer; transition: transform 0.15s;
+          }
+          .color-picker button.active {
+            border-color: var(--text); transform: scale(1.1);
+          }
+          .modal-buttons {
+            display: flex; gap: 10px; margin-top: 8px;
+          }
+          .modal-buttons button {
+            flex: 1; padding: 12px; border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--surface-2); color: var(--text);
+            font-size: 0.95em; font-weight: 600; cursor: pointer;
+          }
+          .modal-buttons button.primary {
+            background: var(--primary); color: #fff;
+            border-color: var(--primary);
+          }
+          .overlay-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px; border-radius: 10px;
+            background: var(--surface-2); margin-bottom: 8px;
+          }
+          .overlay-text-preview { flex: 1; font-weight: 600; }
+          .overlay-del {
+            background: transparent; border: none;
+            color: var(--danger); font-size: 1.2em;
+            cursor: pointer;
+          }
           __VS_EOF__
 
           cat > app/src/main/assets/js/db.js << '__VS_EOF__'
-          // IndexedDB بسيط لتخزين فيديوهات المشاريع
           const VDB = (() => {
             const DB_NAME = 'videostudio_db';
             const DB_VERSION = 1;
             let dbPromise = null;
-
             function open() {
               if (dbPromise) return dbPromise;
               dbPromise = new Promise((resolve, reject) => {
@@ -840,7 +990,6 @@ jobs:
               });
               return dbPromise;
             }
-
             async function tx(store, mode, fn) {
               const db = await open();
               return new Promise((resolve, reject) => {
@@ -851,45 +1000,41 @@ jobs:
                 t.onerror = () => reject(t.error);
               });
             }
-
             return {
-              async addClip(clip) {
-                return tx('clips', 'readwrite', s => s.add(clip));
-              },
+              async addClip(clip) { return tx('clips', 'readwrite', s => s.add(clip)); },
+              async updateClip(clip) { return tx('clips', 'readwrite', s => s.put(clip)); },
               async getClipsByProject(projectId) {
                 const db = await open();
                 return new Promise((resolve, reject) => {
                   const t = db.transaction('clips', 'readonly');
                   const idx = t.objectStore('clips').index('projectId');
                   const req = idx.getAll(projectId);
-                  req.onsuccess = () => resolve(req.result.sort((a,b) => a.createdAt - b.createdAt));
+                  req.onsuccess = () => resolve(
+                    req.result.sort((a, b) => (a.order || 0) - (b.order || 0))
+                  );
                   req.onerror = () => reject(req.error);
                 });
               },
-              async deleteClip(id) {
-                return tx('clips', 'readwrite', s => s.delete(id));
-              },
+              async deleteClip(id) { return tx('clips', 'readwrite', s => s.delete(id)); },
               async deleteClipsByProject(projectId) {
                 const clips = await this.getClipsByProject(projectId);
                 for (const c of clips) await this.deleteClip(c.id);
               },
-              async clearAll() {
-                return tx('clips', 'readwrite', s => s.clear());
-              }
+              async clearAll() { return tx('clips', 'readwrite', s => s.clear()); }
             };
           })();
           __VS_EOF__
 
           cat > app/src/main/assets/js/app.js << '__VS_EOF__'
-          // ============ الحالة ============
           const state = {
             screen: 'home',
             theme: localStorage.getItem('theme') || 'dark',
             projects: JSON.parse(localStorage.getItem('projects') || '[]'),
-            currentProjectId: null
+            currentProjectId: null,
+            editingClipId: null,
+            overlayColor: '#FFFFFF'
           };
 
-          // ============ التهيئة ============
           document.addEventListener('DOMContentLoaded', () => {
             applyTheme(state.theme);
             updateProjectsUI();
@@ -898,9 +1043,21 @@ jobs:
               const el = document.getElementById('app-version');
               if (el) el.innerText = 'الإصدار ' + v;
             }
+            setupColorPicker();
           });
 
-          // ============ التنقل ============
+          function setupColorPicker() {
+            const cp = document.getElementById('color-picker');
+            if (!cp) return;
+            cp.querySelectorAll('button').forEach(btn => {
+              btn.onclick = () => {
+                cp.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.overlayColor = btn.dataset.color;
+              };
+            });
+          }
+
           function switchScreen(name) {
             state.screen = name;
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -914,7 +1071,6 @@ jobs:
             if (name === 'projects') updateProjectsUI();
           }
 
-          // ============ الثيم ============
           function applyTheme(theme) {
             document.body.classList.toggle('light', theme === 'light');
             const icon = document.getElementById('theme-icon');
@@ -928,7 +1084,6 @@ jobs:
             if (window.Android) Android.vibrate(20);
           }
 
-          // ============ المشاريع ============
           function saveProjects() {
             localStorage.setItem('projects', JSON.stringify(state.projects));
           }
@@ -937,46 +1092,38 @@ jobs:
             const count = state.projects.length;
             const countEl = document.getElementById('projects-count');
             if (countEl) countEl.innerText = count + ' مشروع';
-
             const listEl = document.getElementById('projects-list');
             const recentEl = document.getElementById('recent-projects');
-
             if (count === 0) {
               if (listEl) listEl.innerHTML = emptyProjectsHTML();
               if (recentEl) recentEl.innerHTML = emptyRecentHTML();
               return;
             }
-
             const cardsHTML = state.projects.slice().reverse().map(p => projectCardHTML(p)).join('');
             if (listEl) listEl.innerHTML = cardsHTML;
             if (recentEl) {
-              const recent = state.projects.slice(-2).reverse();
-              recentEl.innerHTML = recent.map(p => projectCardHTML(p)).join('');
+              recentEl.innerHTML = state.projects.slice(-2).reverse().map(p => projectCardHTML(p)).join('');
             }
           }
 
           function emptyProjectsHTML() {
-            return '<div class="empty-icon">📂</div>' +
-                   '<div class="empty-text">لا توجد مشاريع</div>' +
+            return '<div class="empty-icon">📂</div><div class="empty-text">لا توجد مشاريع</div>' +
                    '<div class="empty-hint">ستظهر مشاريعك هنا</div>';
           }
-
           function emptyRecentHTML() {
-            return '<div class="empty-icon">📺</div>' +
-                   '<div class="empty-text">لا توجد مشاريع بعد</div>' +
+            return '<div class="empty-icon">📺</div><div class="empty-text">لا توجد مشاريع بعد</div>' +
                    '<div class="empty-hint">اضغط «مشروع جديد» للبدء</div>';
           }
-
           function projectCardHTML(p) {
             const clipCount = p.clipCount || 0;
+            const ovCount = (p.overlays || []).length;
             const dateStr = new Date(p.createdAt).toLocaleDateString('ar');
+            const extras = ovCount ? ' • ' + ovCount + ' نص' : '';
             return '<div class="project-card" onclick="openProject(\'' + p.id + '\')">' +
                    '<div class="project-thumb">🎬</div>' +
-                   '<div class="project-info">' +
-                   '<div class="project-name">' + escapeHtml(p.name) + '</div>' +
-                   '<div class="project-meta">' + clipCount + ' مقطع • ' + dateStr + '</div>' +
-                   '</div>' +
-                   '</div>';
+                   '<div class="project-info"><div class="project-name">' + escapeHtml(p.name) + '</div>' +
+                   '<div class="project-meta">' + clipCount + ' مقطع' + extras + ' • ' + dateStr + '</div>' +
+                   '</div></div>';
           }
 
           function startNewProject() {
@@ -986,7 +1133,8 @@ jobs:
               id: 'p_' + Date.now(),
               name: name.trim(),
               createdAt: Date.now(),
-              clipCount: 0
+              clipCount: 0,
+              overlays: []
             };
             state.projects.push(project);
             saveProjects();
@@ -1025,20 +1173,11 @@ jobs:
             if (window.Android) Android.toast('تم حذف المشروع');
           }
 
-          function openGallery() {
-            switchScreen('projects');
-          }
+          function openGallery() { switchScreen('projects'); }
 
           function soon(name) {
-            if (window.Android) Android.toast(name + ' — قادم في الدفعة القادمة');
-            else alert(name + ' — قادم قريباً');
+            if (window.Android) Android.toast(name + ' — قادم في تحديث لاحق');
             if (window.Android) Android.vibrate(20);
-          }
-
-          function testBridge() {
-            if (!window.Android) { alert('الجسر غير متاح'); return; }
-            Android.toast('الجسر يعمل! الإصدار ' + Android.getVersion());
-            Android.vibrate(50);
           }
 
           async function clearStorage() {
@@ -1055,33 +1194,36 @@ jobs:
               ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
           }
 
-          // ============ زر الرجوع ============
           window.handleBack = function() {
-            if (state.screen === 'home' && !document.getElementById('screen-project').classList.contains('active')) {
-              return false;
+            if (document.getElementById('screen-editor').classList.contains('active')) {
+              closeEditor();
+              return true;
             }
             if (document.getElementById('screen-project').classList.contains('active')) {
               backToProjects();
               return true;
             }
+            if (state.screen === 'home') return false;
             switchScreen('home');
             return true;
           };
           __VS_EOF__
 
           cat > app/src/main/assets/js/gallery.js << '__VS_EOF__'
-          // ============ إدارة مقاطع المشروع ============
-          function showLoading(text) {
+          function showLoading(text, pct) {
             let overlay = document.querySelector('.loading-overlay');
             if (!overlay) {
               overlay = document.createElement('div');
               overlay.className = 'loading-overlay';
               document.body.appendChild(overlay);
             }
-            overlay.innerHTML = '<div>' + text + '</div>';
+            let html = '<div>' + text + '</div>';
+            if (pct !== undefined) {
+              html += '<div class="loading-bar"><div style="width:' + pct + '%"></div></div>';
+            }
+            overlay.innerHTML = html;
             overlay.classList.remove('hidden');
           }
-
           function hideLoading() {
             const overlay = document.querySelector('.loading-overlay');
             if (overlay) overlay.classList.add('hidden');
@@ -1094,8 +1236,7 @@ jobs:
             input.accept = 'video/*';
             input.onchange = async (e) => {
               const file = e.target.files[0];
-              if (!file) return;
-              await processVideoFile(file);
+              if (file) await processVideoFile(file);
             };
             input.click();
           }
@@ -1105,13 +1246,11 @@ jobs:
               if (window.Android) Android.toast('الملف ليس فيديو');
               return;
             }
-
             showLoading('جارٍ معالجة الفيديو...');
-
             try {
               const duration = await getVideoDuration(file);
               const thumbnail = await getVideoThumbnail(file);
-
+              const existing = await VDB.getClipsByProject(state.currentProjectId);
               const clip = {
                 id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
                 projectId: state.currentProjectId,
@@ -1119,31 +1258,26 @@ jobs:
                 size: file.size,
                 type: file.type,
                 duration: duration,
+                trimStart: 0,
+                trimEnd: duration,
+                order: existing.length,
                 thumbnail: thumbnail,
                 blob: file,
                 createdAt: Date.now()
               };
-
               await VDB.addClip(clip);
-
               const project = state.projects.find(p => p.id === state.currentProjectId);
               if (project) {
                 project.clipCount = (project.clipCount || 0) + 1;
                 saveProjects();
               }
-
               await loadClipsForProject(state.currentProjectId);
               hideLoading();
-
-              if (window.Android) {
-                Android.toast('تمت إضافة المقطع');
-                Android.vibrate(50);
-              }
+              if (window.Android) { Android.toast('تمت إضافة المقطع'); Android.vibrate(50); }
             } catch (err) {
               hideLoading();
               console.error(err);
               if (window.Android) Android.toast('فشل حفظ المقطع');
-              else alert('فشل حفظ المقطع: ' + err.message);
             }
           }
 
@@ -1152,10 +1286,7 @@ jobs:
               const url = URL.createObjectURL(file);
               const v = document.createElement('video');
               v.preload = 'metadata';
-              v.onloadedmetadata = () => {
-                URL.revokeObjectURL(url);
-                resolve(isFinite(v.duration) ? v.duration : 0);
-              };
+              v.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(isFinite(v.duration) ? v.duration : 0); };
               v.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
               v.src = url;
             });
@@ -1165,40 +1296,23 @@ jobs:
             return new Promise((resolve) => {
               const url = URL.createObjectURL(file);
               const v = document.createElement('video');
-              v.preload = 'auto';
-              v.muted = true;
-              v.playsInline = true;
-              v.crossOrigin = 'anonymous';
-
+              v.preload = 'auto'; v.muted = true; v.playsInline = true;
               const cleanup = () => URL.revokeObjectURL(url);
-
               v.onloadeddata = () => {
-                try {
-                  v.currentTime = Math.min(1, (v.duration || 1) / 2);
-                } catch (e) {
-                  cleanup();
-                  resolve('');
-                }
+                try { v.currentTime = Math.min(1, (v.duration || 1) / 2); }
+                catch (e) { cleanup(); resolve(''); }
               };
-
               v.onseeked = () => {
                 try {
                   const canvas = document.createElement('canvas');
                   const w = 160;
                   const h = Math.round((v.videoHeight / v.videoWidth) * w) || 120;
-                  canvas.width = w;
-                  canvas.height = h;
-                  const ctx = canvas.getContext('2d');
-                  ctx.drawImage(v, 0, 0, w, h);
+                  canvas.width = w; canvas.height = h;
+                  canvas.getContext('2d').drawImage(v, 0, 0, w, h);
                   const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-                  cleanup();
-                  resolve(dataUrl);
-                } catch (e) {
-                  cleanup();
-                  resolve('');
-                }
+                  cleanup(); resolve(dataUrl);
+                } catch (e) { cleanup(); resolve(''); }
               };
-
               v.onerror = () => { cleanup(); resolve(''); };
               v.src = url;
             });
@@ -1210,37 +1324,30 @@ jobs:
               const clips = await VDB.getClipsByProject(projectId);
               if (!clips.length) {
                 container.innerHTML =
-                  '<div class="empty-state">' +
-                  '<div class="empty-icon">🎞️</div>' +
+                  '<div class="empty-state"><div class="empty-icon">🎞️</div>' +
                   '<div class="empty-text">لا توجد مقاطع</div>' +
-                  '<div class="empty-hint">أضف أول مقطع من زر الأعلى</div>' +
-                  '</div>';
+                  '<div class="empty-hint">أضف أول مقطع من زر الأعلى</div></div>';
                 return;
               }
               container.innerHTML = clips.map(c => clipCardHTML(c)).join('');
             } catch (e) {
               container.innerHTML =
-                '<div class="empty-state">' +
-                '<div class="empty-icon">⚠️</div>' +
-                '<div class="empty-text">فشل تحميل المقاطع</div>' +
-                '</div>';
+                '<div class="empty-state"><div class="empty-icon">⚠️</div>' +
+                '<div class="empty-text">فشل تحميل المقاطع</div></div>';
             }
           }
 
           function clipCardHTML(clip) {
             const dur = formatDuration(clip.duration);
             const size = (clip.size / (1024 * 1024)).toFixed(1) + ' MB';
+            const trimNote = (clip.trimStart > 0 || clip.trimEnd < clip.duration) ? ' ✂️' : '';
             const thumb = clip.thumbnail
               ? '<img class="clip-thumb" src="' + clip.thumbnail + '" alt="">'
               : '<div class="clip-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5em">🎬</div>';
-            return '<div class="clip-card">' +
-                   thumb +
-                   '<div class="clip-info">' +
-                   '<div class="clip-name">' + escapeHtml(clip.name) + '</div>' +
-                   '<div class="clip-meta">' + dur + ' • ' + size + '</div>' +
-                   '</div>' +
-                   '<button class="clip-delete" onclick="removeClip(\'' + clip.id + '\')" title="حذف">🗑️</button>' +
-                   '</div>';
+            return '<div class="clip-card">' + thumb +
+                   '<div class="clip-info"><div class="clip-name">' + escapeHtml(clip.name) + '</div>' +
+                   '<div class="clip-meta">' + dur + trimNote + ' • ' + size + '</div></div>' +
+                   '<button class="clip-delete" onclick="removeClip(\'' + clip.id + '\')">🗑️</button></div>';
           }
 
           async function removeClip(clipId) {
@@ -1267,6 +1374,494 @@ jobs:
           }
           __VS_EOF__
 
+          cat > app/src/main/assets/js/editor.js << '__VS_EOF__'
+          // ============ المحرر ============
+          let previewPlaying = false;
+          let previewCancel = false;
+
+          function openEditor() {
+            if (!state.currentProjectId) return;
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            if (!project) return;
+            document.getElementById('editor-title').innerText = project.name;
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-editor').classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.bottom-nav').style.display = 'none';
+            loadEditorTimeline();
+            drawInitialFrame();
+            window.scrollTo(0, 0);
+          }
+
+          function closeEditor() {
+            previewCancel = true;
+            previewPlaying = false;
+            document.querySelector('.bottom-nav').style.display = 'flex';
+            switchScreen('project');
+          }
+
+          async function drawInitialFrame() {
+            const canvas = document.getElementById('preview-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#666';
+            ctx.font = 'bold 28px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('معاينة', canvas.width / 2, canvas.height / 2);
+          }
+
+          async function loadEditorTimeline() {
+            const container = document.getElementById('editor-timeline');
+            if (!state.currentProjectId) return;
+            const clips = await VDB.getClipsByProject(state.currentProjectId);
+            if (!clips.length) {
+              container.innerHTML =
+                '<div class="empty-state" style="width:100%">' +
+                '<div class="empty-text">لا توجد مقاطع</div></div>';
+              return;
+            }
+            container.innerHTML = clips.map((c, i) => timelineClipHTML(c, i, clips.length)).join('');
+          }
+
+          function timelineClipHTML(clip, index, total) {
+            const dur = formatDuration(clip.duration);
+            const trim = (clip.trimStart > 0 || clip.trimEnd < clip.duration)
+              ? '✂️ ' + formatDuration(clip.trimEnd - clip.trimStart) : dur;
+            const thumb = clip.thumbnail
+              ? '<img class="timeline-thumb" src="' + clip.thumbnail + '" alt="">'
+              : '<div class="timeline-thumb" style="display:flex;align-items:center;justify-content:center;font-size:2em">🎬</div>';
+            return '<div class="timeline-clip" data-id="' + clip.id + '">' +
+                   thumb +
+                   '<div class="timeline-info"><span>' + (index + 1) + '</span><span>' + trim + '</span></div>' +
+                   '<div class="timeline-controls">' +
+                   '<button onclick="event.stopPropagation();openTrimModal(\'' + clip.id + '\')">✏️</button>' +
+                   (index > 0 ? '<button onclick="event.stopPropagation();moveClip(\'' + clip.id + '\',-1)">◀</button>' : '<button style="opacity:0.3">◀</button>') +
+                   (index < total - 1 ? '<button onclick="event.stopPropagation();moveClip(\'' + clip.id + '\',1)">▶</button>' : '<button style="opacity:0.3">▶</button>') +
+                   '</div></div>';
+          }
+
+          async function moveClip(clipId, direction) {
+            const clips = await VDB.getClipsByProject(state.currentProjectId);
+            const idx = clips.findIndex(c => c.id === clipId);
+            if (idx < 0) return;
+            const newIdx = idx + direction;
+            if (newIdx < 0 || newIdx >= clips.length) return;
+            const temp = clips[idx];
+            clips[idx] = clips[newIdx];
+            clips[newIdx] = temp;
+            for (let i = 0; i < clips.length; i++) {
+              clips[i].order = i;
+              await VDB.updateClip(clips[i]);
+            }
+            await loadEditorTimeline();
+            if (window.Android) Android.vibrate(20);
+          }
+
+          // ============ القص ============
+          let editingClip = null;
+          async function openTrimModal(clipId) {
+            const clips = await VDB.getClipsByProject(state.currentProjectId);
+            const clip = clips.find(c => c.id === clipId);
+            if (!clip) return;
+            editingClip = clip;
+            state.editingClipId = clipId;
+            const startEl = document.getElementById('trim-start');
+            const endEl = document.getElementById('trim-end');
+            startEl.max = clip.duration;
+            endEl.max = clip.duration;
+            startEl.value = clip.trimStart || 0;
+            endEl.value = clip.trimEnd || clip.duration;
+            updateTrimLabels();
+            document.getElementById('trim-modal').classList.remove('hidden');
+            if (window.Android) Android.vibrate(20);
+          }
+
+          function updateTrimLabels() {
+            const s = parseFloat(document.getElementById('trim-start').value) || 0;
+            const e = parseFloat(document.getElementById('trim-end').value) || 0;
+            document.getElementById('trim-start-val').innerText = s.toFixed(1) + 's';
+            document.getElementById('trim-end-val').innerText = e.toFixed(1) + 's';
+          }
+
+          document.addEventListener('input', (e) => {
+            if (e.target.id === 'trim-start' || e.target.id === 'trim-end') {
+              const s = parseFloat(document.getElementById('trim-start').value);
+              const en = parseFloat(document.getElementById('trim-end').value);
+              if (s >= en) {
+                if (e.target.id === 'trim-start') document.getElementById('trim-end').value = (s + 0.5).toFixed(1);
+                else document.getElementById('trim-start').value = Math.max(0, en - 0.5).toFixed(1);
+              }
+              updateTrimLabels();
+            }
+          });
+
+          function cancelTrim() {
+            editingClip = null;
+            document.getElementById('trim-modal').classList.add('hidden');
+          }
+
+          async function saveTrim() {
+            if (!editingClip) return;
+            const s = parseFloat(document.getElementById('trim-start').value);
+            const e = parseFloat(document.getElementById('trim-end').value);
+            editingClip.trimStart = s;
+            editingClip.trimEnd = e;
+            await VDB.updateClip(editingClip);
+            editingClip = null;
+            document.getElementById('trim-modal').classList.add('hidden');
+            await loadEditorTimeline();
+            if (window.Android) { Android.toast('تم حفظ القص'); Android.vibrate(30); }
+          }
+
+          // ============ النصوص ============
+          function openOverlayModal() {
+            document.getElementById('overlay-text').value = '';
+            state.overlayColor = '#FFFFFF';
+            const cp = document.getElementById('color-picker');
+            cp.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === 0));
+            document.getElementById('overlay-modal').classList.remove('hidden');
+          }
+
+          function cancelOverlay() {
+            document.getElementById('overlay-modal').classList.add('hidden');
+          }
+
+          function saveOverlay() {
+            const text = document.getElementById('overlay-text').value.trim();
+            if (!text) { if (window.Android) Android.toast('اكتب النص أولاً'); return; }
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            if (!project) return;
+            if (!project.overlays) project.overlays = [];
+            project.overlays.push({
+              id: 'o_' + Date.now(),
+              text: text,
+              color: state.overlayColor,
+              size: 48,
+              x: null, y: null,
+              startTime: 0,
+              endTime: 99999
+            });
+            saveProjects();
+            document.getElementById('overlay-modal').classList.add('hidden');
+            if (window.Android) { Android.toast('تمت إضافة النص'); Android.vibrate(30); }
+          }
+
+          function showOverlaysList() {
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            const overlays = (project && project.overlays) || [];
+            const content = document.getElementById('overlays-list-content');
+            if (!overlays.length) {
+              content.innerHTML = '<div class="empty-state" style="padding:20px">' +
+                '<div class="empty-text">لا نصوص</div></div>';
+            } else {
+              content.innerHTML = overlays.map(o =>
+                '<div class="overlay-item">' +
+                '<div class="overlay-text-preview" style="color:' + o.color + '">' +
+                escapeHtml(o.text) + '</div>' +
+                '<button class="overlay-del" onclick="deleteOverlay(\'' + o.id + '\')">🗑️</button></div>'
+              ).join('');
+            }
+            document.getElementById('overlays-list-modal').classList.remove('hidden');
+          }
+
+          function hideOverlaysList() {
+            document.getElementById('overlays-list-modal').classList.add('hidden');
+          }
+
+          function deleteOverlay(id) {
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            if (!project) return;
+            project.overlays = (project.overlays || []).filter(o => o.id !== id);
+            saveProjects();
+            showOverlaysList();
+            if (window.Android) Android.vibrate(20);
+          }
+
+          // ============ المعاينة ============
+          async function previewProject() {
+            if (previewPlaying) {
+              previewCancel = true;
+              previewPlaying = false;
+              document.getElementById('preview-play').innerText = '▶️';
+              return;
+            }
+            previewPlaying = true;
+            previewCancel = false;
+            document.getElementById('preview-play').innerText = '⏸';
+
+            const canvas = document.getElementById('preview-canvas');
+            const ctx = canvas.getContext('2d');
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            const overlays = (project && project.overlays) || [];
+            const clips = await VDB.getClipsByProject(state.currentProjectId);
+            if (!clips.length) { previewPlaying = false; return; }
+
+            let totalDur = 0;
+            for (const c of clips) {
+              totalDur += Math.max(0.1, (c.trimEnd || c.duration) - (c.trimStart || 0));
+            }
+            let accumulated = 0;
+
+            for (const clip of clips) {
+              if (previewCancel) break;
+              await previewClipPlayback(clip, ctx, canvas, overlays, accumulated, totalDur, (p) => {
+                document.getElementById('preview-progress-bar').style.width = p + '%';
+              });
+              accumulated += Math.max(0.1, (clip.trimEnd || clip.duration) - (clip.trimStart || 0));
+            }
+
+            previewPlaying = false;
+            document.getElementById('preview-play').innerText = '▶️';
+            document.getElementById('preview-progress-bar').style.width = '0%';
+          }
+
+          function previewClipPlayback(clip, ctx, canvas, overlays, baseProgress, totalDur, onProgress) {
+            return new Promise((resolve) => {
+              const url = URL.createObjectURL(clip.blob);
+              const video = document.createElement('video');
+              video.src = url;
+              video.muted = false;
+              video.playsInline = true;
+              video.crossOrigin = 'anonymous';
+
+              const trimStart = clip.trimStart || 0;
+              const trimEnd = clip.trimEnd || clip.duration;
+              const dur = Math.max(0.1, trimEnd - trimStart);
+              let startWall = null;
+
+              video.onloadedmetadata = () => { video.currentTime = trimStart; };
+              video.onseeked = () => {
+                startWall = performance.now();
+                video.play().catch(() => {});
+                requestAnimationFrame(drawFrame);
+              };
+
+              function drawFrame() {
+                if (previewCancel) {
+                  video.pause(); URL.revokeObjectURL(url); resolve(); return;
+                }
+                const elapsed = (performance.now() - startWall) / 1000;
+                drawVideoFit(ctx, video, canvas.width, canvas.height);
+                if (overlays.length) {
+                  drawOverlaysOnCanvas(ctx, overlays, elapsed, canvas.width, canvas.height);
+                }
+                const clipProgress = Math.min(1, elapsed / dur);
+                const overall = ((baseProgress + elapsed) / totalDur) * 100;
+                onProgress(Math.min(100, overall));
+
+                if (elapsed >= dur || video.ended) {
+                  video.pause(); URL.revokeObjectURL(url); resolve(); return;
+                }
+                requestAnimationFrame(drawFrame);
+              }
+
+              video.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+            });
+          }
+
+          function drawVideoFit(ctx, video, w, h) {
+            const vw = video.videoWidth || w;
+            const vh = video.videoHeight || h;
+            const scale = Math.min(w / vw, h / vh);
+            const dw = vw * scale, dh = vh * scale;
+            const dx = (w - dw) / 2, dy = (h - dh) / 2;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+            try { ctx.drawImage(video, dx, dy, dw, dh); } catch (e) {}
+          }
+
+          function drawOverlaysOnCanvas(ctx, overlays, time, w, h) {
+            for (const ov of overlays) {
+              if (time < ov.startTime || time > ov.endTime) continue;
+              ctx.save();
+              ctx.fillStyle = ov.color || '#fff';
+              ctx.font = 'bold ' + (ov.size || 48) + 'px system-ui, -apple-system, sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.shadowColor = 'rgba(0,0,0,0.8)';
+              ctx.shadowBlur = 10;
+              ctx.shadowOffsetX = 0;
+              ctx.shadowOffsetY = 2;
+              const x = ov.x != null ? ov.x : w / 2;
+              const y = ov.y != null ? ov.y : h / 2;
+              ctx.fillText(ov.text || '', x, y);
+              ctx.restore();
+            }
+          }
+
+          // ============ التصدير ============
+          async function exportProject() {
+            if (!state.currentProjectId) return;
+            if (!window.MediaRecorder) {
+              if (window.Android) Android.toast('المتصفح لا يدعم التصدير');
+              return;
+            }
+            const clips = await VDB.getClipsByProject(state.currentProjectId);
+            if (!clips.length) { if (window.Android) Android.toast('لا توجد مقاطع'); return; }
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            const overlays = (project && project.overlays) || [];
+
+            let totalDur = 0;
+            for (const c of clips) {
+              totalDur += Math.max(0.1, (c.trimEnd || c.duration) - (c.trimStart || 0));
+            }
+            showLoading('جارٍ التصدير... 0%', 0);
+
+            try {
+              // تحديد الدقة من أول فيديو
+              const firstVideoMeta = await loadVideoMeta(clips[0]);
+              const width = Math.min(firstVideoMeta.width || 1280, 1280);
+              const height = Math.round((firstVideoMeta.height / firstVideoMeta.width) * width) || 720;
+
+              const canvas = document.createElement('canvas');
+              canvas.width = width; canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#000';
+              ctx.fillRect(0, 0, width, height);
+
+              const videoStream = canvas.captureStream(30);
+
+              // Audio
+              let audioCtx = null, audioDest = null;
+              try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioDest = audioCtx.createMediaStreamDestination();
+              } catch (e) { console.warn('AudioContext', e); }
+
+              let finalStream = videoStream;
+              if (audioDest) {
+                finalStream = new MediaStream([
+                  ...videoStream.getVideoTracks(),
+                  ...audioDest.stream.getAudioTracks()
+                ]);
+              }
+
+              let mimeType = 'video/webm;codecs=vp8,opus';
+              if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+              if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
+
+              const recorder = new MediaRecorder(finalStream, mimeType
+                ? { mimeType, videoBitsPerSecond: 4_000_000 }
+                : { videoBitsPerSecond: 4_000_000 });
+
+              const chunks = [];
+              recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+              const donePromise = new Promise((resolve) => {
+                recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+              });
+
+              recorder.start(200);
+
+              let accumulated = 0;
+              for (const clip of clips) {
+                await exportClipPlayback(clip, ctx, canvas, overlays, accumulated, totalDur, (pct) => {
+                  showLoading('جارٍ التصدير... ' + pct + '%', pct);
+                });
+                accumulated += Math.max(0.1, (clip.trimEnd || clip.duration) - (clip.trimStart || 0));
+              }
+
+              await new Promise(r => setTimeout(r, 400));
+              recorder.stop();
+              const blob = await donePromise;
+              if (audioCtx) audioCtx.close().catch(() => {});
+
+              const base64 = await blobToBase64(blob);
+              hideLoading();
+
+              if (window.Android && Android.saveVideo) {
+                Android.saveVideo(base64, 'VideoStudio_' + Date.now() + '.webm', 'video/webm');
+              } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'VideoStudio_' + Date.now() + '.webm';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+              }
+            } catch (err) {
+              hideLoading();
+              console.error(err);
+              if (window.Android) Android.toast('فشل التصدير: ' + err.message);
+            }
+          }
+
+          function loadVideoMeta(clip) {
+            return new Promise((resolve) => {
+              const url = URL.createObjectURL(clip.blob);
+              const v = document.createElement('video');
+              v.preload = 'metadata';
+              v.onloadedmetadata = () => {
+                URL.revokeObjectURL(url);
+                resolve({ width: v.videoWidth || 1280, height: v.videoHeight || 720 });
+              };
+              v.onerror = () => { URL.revokeObjectURL(url); resolve({ width: 1280, height: 720 }); };
+              v.src = url;
+            });
+          }
+
+          function exportClipPlayback(clip, ctx, canvas, overlays, baseProgress, totalDur, onProgress) {
+            return new Promise((resolve) => {
+              const url = URL.createObjectURL(clip.blob);
+              const video = document.createElement('video');
+              video.src = url;
+              video.muted = false;
+              video.playsInline = true;
+              video.crossOrigin = 'anonymous';
+
+              // محاولة توصيل الصوت إلى MediaStreamDestination
+              if (window._vsAudioDest) {
+                try {
+                  const src = window._vsAudioCtx.createMediaElementSource(video);
+                  src.connect(window._vsAudioDest);
+                } catch (e) {}
+              }
+
+              const trimStart = clip.trimStart || 0;
+              const trimEnd = clip.trimEnd || clip.duration;
+              const dur = Math.max(0.1, trimEnd - trimStart);
+              let startWall = null;
+
+              video.onloadedmetadata = () => { video.currentTime = trimStart; };
+              video.onseeked = () => {
+                startWall = performance.now();
+                video.play().catch(() => {});
+                requestAnimationFrame(drawFrame);
+              };
+
+              function drawFrame() {
+                const elapsed = (performance.now() - startWall) / 1000;
+                drawVideoFit(ctx, video, canvas.width, canvas.height);
+                if (overlays.length) {
+                  drawOverlaysOnCanvas(ctx, overlays, elapsed, canvas.width, canvas.height);
+                }
+                const overall = ((baseProgress + elapsed) / totalDur) * 100;
+                onProgress(Math.min(99, Math.round(overall)));
+
+                if (elapsed >= dur || video.ended) {
+                  video.pause(); URL.revokeObjectURL(url); resolve(); return;
+                }
+                requestAnimationFrame(drawFrame);
+              }
+
+              video.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+            });
+          }
+
+          function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const result = reader.result;
+                resolve(result.split(',')[1]);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+          __VS_EOF__
+
       - name: Build APK
         run: gradle assembleDebug --no-daemon
 
@@ -1283,4 +1878,4 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
           gh release create "v${{ github.run_number }}" VideoStudio.apk \
             --title "v${{ github.run_number }}" \
-            --notes "استوديو الفيديو — الدفعة 4 (معرض + اختيار فيديو)"
+            --notes "استوديو الفيديو — الدفعة 5 (المحرر والتصدير)"
