@@ -1,9 +1,12 @@
-name: Build APK
+name: Build VideoStudio APK
 on:
   push:
+    branches: [ main, master ]
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,16 +19,268 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Build
+      - name: Generate project files
         run: |
-          mkdir proj
-          if [ -f project.b64 ]; then base64 -d project.b64 > project.zip; fi
-          unzip -q project.zip -d proj
-          cd proj
-          gradle assembleDebug --no-daemon
-      - name: Publish release
+          set -e
+          mkdir -p app/src/main/java/com/videostudio/app
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+          mkdir -p app/src/main/assets
+
+          cat > .gitignore << '__VS_EOF__'
+          *.iml
+          .gradle/
+          local.properties
+          .idea/
+          .DS_Store
+          build/
+          captures/
+          .externalNativeBuild
+          .cxx
+          *.apk
+          *.aab
+          *.keystore
+          __VS_EOF__
+
+          cat > gradle.properties << '__VS_EOF__'
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          __VS_EOF__
+
+          cat > settings.gradle.kts << '__VS_EOF__'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "VideoStudio"
+          include(":app")
+          __VS_EOF__
+
+          cat > build.gradle.kts << '__VS_EOF__'
+          plugins {
+              id("com.android.application") version "8.2.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+          }
+          __VS_EOF__
+
+          cat > app/build.gradle.kts << '__VS_EOF__'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          android {
+              namespace = "com.videostudio.app"
+              compileSdk = 34
+
+              defaultConfig {
+                  applicationId = "com.videostudio.app"
+                  minSdk = 24
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+
+              buildTypes {
+                  release {
+                      isMinifyEnabled = false
+                      proguardFiles(
+                          getDefaultProguardFile("proguard-android-optimize.txt"),
+                          "proguard-rules.pro"
+                      )
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+          }
+
+          dependencies {
+              implementation("androidx.core:core-ktx:1.12.0")
+              implementation("androidx.appcompat:appcompat:1.6.1")
+              implementation("com.google.android.material:material:1.11.0")
+              implementation("androidx.webkit:webkit:1.10.0")
+          }
+          __VS_EOF__
+
+          cat > app/proguard-rules.pro << '__VS_EOF__'
+          -keep class com.videostudio.app.** { *; }
+          __VS_EOF__
+
+          cat > app/src/main/AndroidManifest.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.VideoStudio"
+                  android:usesCleartextTraffic="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:theme="@style/Theme.VideoStudio">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          __VS_EOF__
+
+          cat > app/src/main/res/values/strings.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">استوديو الفيديو</string>
+          </resources>
+          __VS_EOF__
+
+          cat > app/src/main/res/values/colors.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="primary">#4F46E5</color>
+              <color name="primary_dark">#3730A3</color>
+              <color name="background">#0F172A</color>
+              <color name="accent">#6366F1</color>
+              <color name="white">#FFFFFF</color>
+          </resources>
+          __VS_EOF__
+
+          cat > app/src/main/res/values/themes.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources xmlns:tools="http://schemas.android.com/tools">
+              <style name="Theme.VideoStudio" parent="Theme.Material3.DayNight.NoActionBar">
+                  <item name="colorPrimary">@color/primary</item>
+                  <item name="colorPrimaryDark">@color/primary_dark</item>
+                  <item name="android:statusBarColor">@color/primary_dark</item>
+                  <item name="android:windowBackground">@color/background</item>
+              </style>
+          </resources>
+          __VS_EOF__
+
+          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M42,32 L42,76 L80,54 Z"/>
+          </vector>
+          __VS_EOF__
+
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/primary" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          __VS_EOF__
+
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << '__VS_EOF__'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/primary" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          __VS_EOF__
+
+          cat > app/src/main/java/com/videostudio/app/MainActivity.kt << '__VS_EOF__'
+          package com.videostudio.app
+
+          import android.os.Bundle
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+          import androidx.appcompat.app.AppCompatActivity
+
+          class MainActivity : AppCompatActivity() {
+              private lateinit var webView: WebView
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  webView = WebView(this)
+                  setContentView(webView)
+                  webView.webViewClient = WebViewClient()
+                  webView.settings.apply {
+                      javaScriptEnabled = true
+                      domStorageEnabled = true
+                      allowFileAccess = true
+                      allowContentAccess = true
+                  }
+                  webView.loadUrl("file:///android_asset/index.html")
+              }
+
+              @Deprecated("Deprecated in Java")
+              override fun onBackPressed() {
+                  if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+              }
+          }
+          __VS_EOF__
+
+          cat > app/src/main/assets/index.html << '__VS_EOF__'
+          <!DOCTYPE html>
+          <html lang="ar" dir="rtl">
+          <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>استوديو الفيديو</title>
+          <style>
+            body{font-family:system-ui,sans-serif;background:#0F172A;color:#fff;
+                 display:flex;align-items:center;justify-content:center;
+                 height:100vh;margin:0;text-align:center}
+            h1{font-size:2em;margin:0}
+            p{opacity:.6;margin-top:.5em}
+          </style>
+          </head>
+          <body>
+            <div>
+              <h1>🎬 استوديو الفيديو</h1>
+              <p>الدفعة 1 — المشروع جاهز</p>
+            </div>
+          </body>
+          </html>
+          __VS_EOF__
+
+      - name: Build APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoStudio-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp proj/app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
-          gh release create "v${{ github.run_number }}" VideoStudio.apk --title "v${{ github.run_number }}" --notes "استوديو الفيديو"
+          cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
+          gh release create "v${{ github.run_number }}" VideoStudio.apk \
+            --title "v${{ github.run_number }}" \
+            --notes "استوديو الفيديو — بناء تلقائي"
