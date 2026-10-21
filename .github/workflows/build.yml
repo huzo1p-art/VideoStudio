@@ -90,8 +90,8 @@ jobs:
                   applicationId = "com.videostudio.app"
                   minSdk = 24
                   targetSdk = 34
-                  versionCode = 1
-                  versionName = "1.0"
+                  versionCode = 2
+                  versionName = "2.0"
               }
 
               buildTypes {
@@ -109,6 +109,10 @@ jobs:
                   targetCompatibility = JavaVersion.VERSION_17
               }
               kotlinOptions { jvmTarget = "17" }
+
+              buildFeatures {
+                  buildConfig = true
+              }
           }
 
           dependencies {
@@ -121,6 +125,9 @@ jobs:
 
           cat > app/proguard-rules.pro << '__VS_EOF__'
           -keep class com.videostudio.app.** { *; }
+          -keepclassmembers class * {
+              @android.webkit.JavascriptInterface <methods>;
+          }
           __VS_EOF__
 
           cat > app/src/main/AndroidManifest.xml << '__VS_EOF__'
@@ -128,6 +135,7 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
               <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.VIBRATE" />
 
               <application
                   android:allowBackup="true"
@@ -214,31 +222,157 @@ jobs:
           cat > app/src/main/java/com/videostudio/app/MainActivity.kt << '__VS_EOF__'
           package com.videostudio.app
 
+          import android.annotation.SuppressLint
+          import android.content.Intent
+          import android.net.Uri
           import android.os.Bundle
+          import android.webkit.ValueCallback
+          import android.webkit.WebChromeClient
           import android.webkit.WebView
           import android.webkit.WebViewClient
+          import android.widget.Toast
+          import androidx.activity.OnBackPressedCallback
+          import androidx.activity.result.ActivityResultLauncher
+          import androidx.activity.result.contract.ActivityResultContracts
           import androidx.appcompat.app.AppCompatActivity
 
           class MainActivity : AppCompatActivity() {
-              private lateinit var webView: WebView
 
+              private lateinit var webView: WebView
+              private var filePathCallback: ValueCallback<Array<Uri>>? = null
+
+              private val fileChooserLauncher: ActivityResultLauncher<Intent> =
+                  registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                      val callback = filePathCallback ?: return@registerForActivityResult
+                      filePathCallback = null
+                      callback.onReceiveValue(
+                          WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+                      )
+                  }
+
+              @SuppressLint("SetJavaScriptEnabled")
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+
                   webView = WebView(this)
                   setContentView(webView)
-                  webView.webViewClient = WebViewClient()
+
                   webView.settings.apply {
                       javaScriptEnabled = true
                       domStorageEnabled = true
                       allowFileAccess = true
                       allowContentAccess = true
+                      mediaPlaybackRequiresUserGesture = false
                   }
+
+                  webView.addJavascriptInterface(WebAppInterface(this), "Android")
+
+                  webView.webViewClient = object : WebViewClient() {
+                      override fun shouldOverrideUrlLoading(
+                          view: WebView?,
+                          request: android.webkit.WebResourceRequest?
+                      ): Boolean {
+                          val url = request?.url.toString()
+                          return if (url.startsWith("http://") || url.startsWith("https://")) {
+                              try {
+                                  startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                  true
+                              } catch (e: Exception) {
+                                  false
+                              }
+                          } else false
+                      }
+                  }
+
+                  webView.webChromeClient = object : WebChromeClient() {
+                      override fun onShowFileChooser(
+                          webView: WebView?,
+                          filePathCallback: ValueCallback<Array<Uri>>?,
+                          fileChooserParams: FileChooserParams?
+                      ): Boolean {
+                          this@MainActivity.filePathCallback?.onReceiveValue(null)
+                          this@MainActivity.filePathCallback = filePathCallback
+                          return try {
+                              fileChooserLauncher.launch(fileChooserParams!!.createIntent())
+                              true
+                          } catch (e: Exception) {
+                              this@MainActivity.filePathCallback?.onReceiveValue(null)
+                              this@MainActivity.filePathCallback = null
+                              false
+                          }
+                      }
+                  }
+
+                  webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+                      try {
+                          val request = android.app.DownloadManager.Request(Uri.parse(url)).apply {
+                              setMimeType(mimeType)
+                              addRequestHeader("User-Agent", userAgent)
+                              setNotificationVisibility(
+                                  android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                              )
+                              setDestinationInExternalPublicDir(
+                                  android.os.Environment.DIRECTORY_DOWNLOADS,
+                                  android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
+                              )
+                          }
+                          (getSystemService(DOWNLOAD_SERVICE) as android.app.DownloadManager).enqueue(request)
+                          Toast.makeText(this@MainActivity, "جاري التحميل...", Toast.LENGTH_SHORT).show()
+                      } catch (e: Exception) {
+                          Toast.makeText(this@MainActivity, "فشل التحميل", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+
+                  onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                      override fun handleOnBackPressed() {
+                          if (webView.canGoBack()) webView.goBack() else finish()
+                      }
+                  })
+
                   webView.loadUrl("file:///android_asset/index.html")
               }
+          }
+          __VS_EOF__
 
-              @Deprecated("Deprecated in Java")
-              override fun onBackPressed() {
-                  if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+          cat > app/src/main/java/com/videostudio/app/WebAppInterface.kt << '__VS_EOF__'
+          package com.videostudio.app
+
+          import android.content.Context
+          import android.os.Build
+          import android.os.VibrationEffect
+          import android.os.Vibrator
+          import android.os.VibratorManager
+          import android.webkit.JavascriptInterface
+          import android.widget.Toast
+
+          class WebAppInterface(private val context: Context) {
+
+              @JavascriptInterface
+              fun toast(message: String) {
+                  Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+              }
+
+              @JavascriptInterface
+              fun getVersion(): String = BuildConfig.VERSION_NAME
+
+              @JavascriptInterface
+              fun vibrate(ms: Int) {
+                  val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                      val manager =
+                          context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                      manager.defaultVibrator
+                  } else {
+                      @Suppress("DEPRECATION")
+                      context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                  }
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      vibrator.vibrate(
+                          VibrationEffect.createOneShot(ms.toLong(), VibrationEffect.DEFAULT_AMPLITUDE)
+                      )
+                  } else {
+                      @Suppress("DEPRECATION")
+                      vibrator.vibrate(ms.toLong())
+                  }
               }
           }
           __VS_EOF__
@@ -251,18 +385,79 @@ jobs:
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>استوديو الفيديو</title>
           <style>
-            body{font-family:system-ui,sans-serif;background:#0F172A;color:#fff;
-                 display:flex;align-items:center;justify-content:center;
-                 height:100vh;margin:0;text-align:center}
-            h1{font-size:2em;margin:0}
-            p{opacity:.6;margin-top:.5em}
+            * { box-sizing: border-box; }
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              background: #0F172A; color: #fff; margin: 0;
+              display: flex; align-items: center; justify-content: center;
+              height: 100vh; padding: 20px; text-align: center;
+            }
+            .card {
+              background: #1E293B; padding: 30px 24px;
+              border-radius: 20px; max-width: 420px; width: 100%;
+              box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            }
+            h1 { font-size: 1.8em; margin: 0 0 6px; }
+            .sub { opacity: 0.65; margin: 0 0 20px; font-size: 0.95em; }
+            button {
+              background: #4F46E5; color: #fff; border: none;
+              padding: 14px 20px; border-radius: 12px;
+              font-size: 1em; font-weight: 600; width: 100%;
+              margin-bottom: 10px; cursor: pointer;
+              transition: background 0.2s;
+            }
+            button:active { background: #3730A3; }
+            #result {
+              margin-top: 14px; font-size: 0.9em;
+              color: #10B981; min-height: 1.2em; word-break: break-all;
+            }
+            .badge {
+              display: inline-block; background: #6366F1;
+              padding: 4px 10px; border-radius: 8px;
+              font-size: 0.8em; margin-bottom: 12px;
+            }
           </style>
           </head>
           <body>
-            <div>
+            <div class="card">
+              <span class="badge">الدفعة 2</span>
               <h1>🎬 استوديو الفيديو</h1>
-              <p>الدفعة 1 — المشروع جاهز</p>
+              <p class="sub">جسر Kotlin ↔ JavaScript جاهز</p>
+
+              <button onclick="testBridge()">🔔 اختبار الجسر</button>
+              <button onclick="pickFile()">📁 اختر ملفاً</button>
+              <p id="result"></p>
             </div>
+
+          <script>
+            function testBridge() {
+              const r = document.getElementById('result');
+              if (!window.Android) {
+                r.style.color = '#EF4444';
+                r.innerText = 'الجسر غير متاح';
+                return;
+              }
+              r.style.color = '#10B981';
+              r.innerText = 'الجسر يعمل! الإصدار ' + Android.getVersion();
+              Android.toast('مرحباً من أندرويد 👋');
+              Android.vibrate(80);
+            }
+
+            function pickFile() {
+              const r = document.getElementById('result');
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'video/*,image/*,audio/*';
+              input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                r.style.color = '#F59E0B';
+                r.innerText = '📄 ' + file.name + ' — ' + (file.size / 1024).toFixed(1) + ' KB';
+                if (window.Android) Android.vibrate(30);
+              };
+              input.click();
+            }
+          </script>
           </body>
           </html>
           __VS_EOF__
@@ -283,4 +478,4 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
           gh release create "v${{ github.run_number }}" VideoStudio.apk \
             --title "v${{ github.run_number }}" \
-            --notes "استوديو الفيديو — بناء تلقائي"
+            --notes "استوديو الفيديو — الدفعة 2 (جسر Kotlin↔JS)"
