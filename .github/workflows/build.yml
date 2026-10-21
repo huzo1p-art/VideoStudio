@@ -53,18 +53,11 @@ jobs:
 
           cat > settings.gradle.kts << '__VS_EOF__'
           pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
           }
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+              repositories { google(); mavenCentral() }
           }
           rootProject.name = "VideoStudio"
           include(":app")
@@ -82,29 +75,22 @@ jobs:
               id("com.android.application")
               id("org.jetbrains.kotlin.android")
           }
-
           android {
               namespace = "com.videostudio.app"
               compileSdk = 34
-
               defaultConfig {
                   applicationId = "com.videostudio.app"
                   minSdk = 24
                   targetSdk = 34
-                  versionCode = 5
-                  versionName = "5.0"
+                  versionCode = 7
+                  versionName = "7.0"
               }
-
               buildTypes {
                   release {
                       isMinifyEnabled = false
-                      proguardFiles(
-                          getDefaultProguardFile("proguard-android-optimize.txt"),
-                          "proguard-rules.pro"
-                      )
+                      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
                   }
               }
-
               compileOptions {
                   sourceCompatibility = JavaVersion.VERSION_17
                   targetCompatibility = JavaVersion.VERSION_17
@@ -112,7 +98,6 @@ jobs:
               kotlinOptions { jvmTarget = "17" }
               buildFeatures { buildConfig = true }
           }
-
           dependencies {
               implementation("androidx.core:core-ktx:1.12.0")
               implementation("androidx.appcompat:appcompat:1.6.1")
@@ -123,20 +108,15 @@ jobs:
 
           cat > app/proguard-rules.pro << '__VS_EOF__'
           -keep class com.videostudio.app.** { *; }
-          -keepclassmembers class * {
-              @android.webkit.JavascriptInterface <methods>;
-          }
+          -keepclassmembers class * { @android.webkit.JavascriptInterface <methods>; }
           __VS_EOF__
 
           cat > app/src/main/AndroidManifest.xml << '__VS_EOF__'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.VIBRATE" />
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-                  android:maxSdkVersion="28" />
-
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
@@ -146,7 +126,6 @@ jobs:
                   android:requestLegacyExternalStorage="true"
                   android:theme="@style/Theme.VideoStudio"
                   android:usesCleartextTraffic="true">
-
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
@@ -181,7 +160,7 @@ jobs:
 
           cat > app/src/main/res/values/themes.xml << '__VS_EOF__'
           <?xml version="1.0" encoding="utf-8"?>
-          <resources xmlns:tools="http://schemas.android.com/tools">
+          <resources>
               <style name="Theme.VideoStudio" parent="Theme.Material3.DayNight.NoActionBar">
                   <item name="colorPrimary">@color/primary</item>
                   <item name="colorPrimaryDark">@color/primary_dark</item>
@@ -194,13 +173,9 @@ jobs:
           cat > app/src/main/res/drawable/ic_launcher_foreground.xml << '__VS_EOF__'
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M42,32 L42,76 L80,54 Z"/>
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#FFFFFF" android:pathData="M42,32 L42,76 L80,54 Z"/>
           </vector>
           __VS_EOF__
 
@@ -241,10 +216,8 @@ jobs:
           import androidx.core.content.ContextCompat
 
           class MainActivity : AppCompatActivity() {
-
               private lateinit var webView: WebView
               private var filePathCallback: ValueCallback<Array<Uri>>? = null
-
               private val fileChooserLauncher: ActivityResultLauncher<Intent> =
                   registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                       val callback = filePathCallback ?: return@registerForActivityResult
@@ -253,23 +226,17 @@ jobs:
                           WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
                       )
                   }
-
               @SuppressLint("SetJavaScriptEnabled")
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                      if (ContextCompat.checkSelfPermission(
-                              this, Manifest.permission.WRITE_EXTERNAL_STORAGE
-                          ) != PackageManager.PERMISSION_GRANTED
-                      ) {
+                      if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                          != PackageManager.PERMISSION_GRANTED) {
                           requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 100)
                       }
                   }
-
                   webView = WebView(this)
                   setContentView(webView)
-
                   webView.settings.apply {
                       javaScriptEnabled = true
                       domStorageEnabled = true
@@ -277,55 +244,34 @@ jobs:
                       allowContentAccess = true
                       mediaPlaybackRequiresUserGesture = false
                   }
-
                   webView.addJavascriptInterface(WebAppInterface(this), "Android")
-
                   webView.webViewClient = object : WebViewClient() {
-                      override fun shouldOverrideUrlLoading(
-                          view: WebView?,
-                          request: android.webkit.WebResourceRequest?
-                      ): Boolean {
-                          val url = request?.url.toString()
+                      override fun shouldOverrideUrlLoading(view: WebView?, req: android.webkit.WebResourceRequest?): Boolean {
+                          val url = req?.url.toString()
                           return if (url.startsWith("http://") || url.startsWith("https://")) {
-                              try {
-                                  startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                  true
-                              } catch (e: Exception) { false }
+                              try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))); true }
+                              catch (e: Exception) { false }
                           } else false
                       }
                   }
-
                   webView.webChromeClient = object : WebChromeClient() {
-                      override fun onShowFileChooser(
-                          webView: WebView?,
-                          filePathCallback: ValueCallback<Array<Uri>>?,
-                          fileChooserParams: FileChooserParams?
-                      ): Boolean {
+                      override fun onShowFileChooser(webView: WebView?, cb: ValueCallback<Array<Uri>>?, params: FileChooserParams?): Boolean {
                           this@MainActivity.filePathCallback?.onReceiveValue(null)
-                          this@MainActivity.filePathCallback = filePathCallback
-                          return try {
-                              fileChooserLauncher.launch(fileChooserParams!!.createIntent())
-                              true
-                          } catch (e: Exception) {
+                          this@MainActivity.filePathCallback = cb
+                          return try { fileChooserLauncher.launch(params!!.createIntent()); true }
+                          catch (e: Exception) {
                               this@MainActivity.filePathCallback?.onReceiveValue(null)
-                              this@MainActivity.filePathCallback = null
-                              false
+                              this@MainActivity.filePathCallback = null; false
                           }
                       }
                   }
-
                   onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
                       override fun handleOnBackPressed() {
-                          webView.evaluateJavascript(
-                              "window.handleBack ? window.handleBack() : false"
-                          ) { result ->
-                              if (result != "true") {
-                                  if (webView.canGoBack()) webView.goBack() else finish()
-                              }
+                          webView.evaluateJavascript("window.handleBack ? window.handleBack() : false") { r ->
+                              if (r != "true") { if (webView.canGoBack()) webView.goBack() else finish() }
                           }
                       }
                   })
-
                   webView.loadUrl("file:///android_asset/index.html")
               }
           }
@@ -348,42 +294,27 @@ jobs:
           import java.io.File
 
           class WebAppInterface(private val context: Context) {
-
               @JavascriptInterface
-              fun toast(message: String) {
-                  Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-              }
-
+              fun toast(m: String) { Toast.makeText(context, m, Toast.LENGTH_SHORT).show() }
               @JavascriptInterface
               fun getVersion(): String = BuildConfig.VERSION_NAME
-
               @JavascriptInterface
               fun vibrate(ms: Int) {
-                  val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                      val manager =
-                          context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                      manager.defaultVibrator
+                  val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                      (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
                   } else {
                       @Suppress("DEPRECATION")
                       context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                   }
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      vibrator.vibrate(
-                          VibrationEffect.createOneShot(ms.toLong(), VibrationEffect.DEFAULT_AMPLITUDE)
-                      )
-                  } else {
-                      @Suppress("DEPRECATION")
-                      vibrator.vibrate(ms.toLong())
-                  }
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                      v.vibrate(VibrationEffect.createOneShot(ms.toLong(), VibrationEffect.DEFAULT_AMPLITUDE))
+                  else { @Suppress("DEPRECATION") v.vibrate(ms.toLong()) }
               }
-
               @JavascriptInterface
               fun saveVideo(base64Data: String, fileName: String, mime: String) {
                   try {
                       val bytes = Base64.decode(base64Data, Base64.DEFAULT)
-                      val name = if (fileName.isBlank())
-                          "VideoStudio_${System.currentTimeMillis()}.webm" else fileName
-
+                      val name = if (fileName.isBlank()) "VideoStudio_${System.currentTimeMillis()}.webm" else fileName
                       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                           val resolver = context.contentResolver
                           val values = ContentValues().apply {
@@ -392,37 +323,25 @@ jobs:
                               put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/VideoStudio")
                               put(MediaStore.Video.Media.IS_PENDING, 1)
                           }
-                          val uri = resolver.insert(
-                              MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values
-                          )
+                          val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
                           if (uri != null) {
                               resolver.openOutputStream(uri)?.use { it.write(bytes) }
-                              values.clear()
-                              values.put(MediaStore.Video.Media.IS_PENDING, 0)
+                              values.clear(); values.put(MediaStore.Video.Media.IS_PENDING, 0)
                               resolver.update(uri, values, null, null)
                               notify("تم حفظ الفيديو في المعرض")
-                          } else {
-                              notify("فشل إنشاء الملف")
-                          }
+                          } else notify("فشل إنشاء الملف")
                       } else {
-                          val dir = File(
-                              Environment.getExternalStoragePublicDirectory(
-                                  Environment.DIRECTORY_MOVIES
-                              ), "VideoStudio"
-                          )
+                          val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "VideoStudio")
                           dir.mkdirs()
-                          val file = File(dir, name)
-                          file.writeBytes(bytes)
-                          notify("تم الحفظ في: ${file.absolutePath}")
+                          val f = File(dir, name)
+                          f.writeBytes(bytes)
+                          notify("تم الحفظ: ${f.absolutePath}")
                       }
-                  } catch (e: Exception) {
-                      notify("فشل الحفظ: ${e.message}")
-                  }
+                  } catch (e: Exception) { notify("فشل الحفظ: ${e.message}") }
               }
-
-              private fun notify(msg: String) {
+              private fun notify(m: String) {
                   (context as? android.app.Activity)?.runOnUiThread {
-                      Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                      Toast.makeText(context, m, Toast.LENGTH_LONG).show()
                   }
               }
           }
@@ -432,210 +351,301 @@ jobs:
           <!DOCTYPE html>
           <html lang="ar" dir="rtl">
           <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-            <title>استوديو الفيديو</title>
-            <link rel="stylesheet" href="css/style.css">
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+          <title>استوديو الفيديو</title>
+          <link rel="stylesheet" href="css/style.css">
           </head>
           <body>
 
-            <div class="screen active" id="screen-home">
-              <header class="app-header">
-                <div>
-                  <div class="greeting">أهلاً بك 👋</div>
-                  <h1 class="app-title">استوديو الفيديو</h1>
-                </div>
-                <button class="icon-btn" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
-              </header>
-              <div class="quick-actions">
-                <button class="action-card action-primary" onclick="startNewProject()">
-                  <div class="action-icon">🎬</div>
-                  <div class="action-label">مشروع جديد</div>
-                  <div class="action-sub">ابدأ التحرير</div>
-                </button>
-                <button class="action-card" onclick="openGallery()">
-                  <div class="action-icon">📁</div>
-                  <div class="action-label">مشاريعي</div>
-                  <div class="action-sub" id="projects-count">0 مشروع</div>
-                </button>
-              </div>
-              <section class="section">
-                <h2 class="section-title">أدوات سريعة</h2>
-                <div class="tools-grid">
-                  <div class="tool" onclick="soon('قص الفيديو')"><div class="tool-icon">✂️</div><div>قص</div></div>
-                  <div class="tool" onclick="soon('دمج الفيديوهات')"><div class="tool-icon">🔗</div><div>دمج</div></div>
-                  <div class="tool" onclick="soon('إضافة نص')"><div class="tool-icon">📝</div><div>نص</div></div>
-                  <div class="tool" onclick="soon('موسيقى')"><div class="tool-icon">🎵</div><div>موسيقى</div></div>
-                  <div class="tool" onclick="soon('فلاتر')"><div class="tool-icon">🎨</div><div>فلاتر</div></div>
-                  <div class="tool" onclick="soon('تحويل صيغة')"><div class="tool-icon">🔄</div><div>تحويل</div></div>
-                  <div class="tool" onclick="soon('ضغط')"><div class="tool-icon">📉</div><div>ضغط</div></div>
-                  <div class="tool" onclick="soon('غلاف')"><div class="tool-icon">🖼️</div><div>غلاف</div></div>
-                </div>
-              </section>
-              <section class="section">
-                <h2 class="section-title">آخر المشاريع</h2>
-                <div id="recent-projects" class="empty-state">
-                  <div class="empty-icon">📺</div>
-                  <div class="empty-text">لا توجد مشاريع بعد</div>
-                  <div class="empty-hint">اضغط «مشروع جديد» للبدء</div>
-                </div>
-              </section>
-            </div>
-
-            <div class="screen" id="screen-projects">
-              <header class="app-header"><h1 class="app-title">مشاريعي</h1></header>
-              <div id="projects-list" class="empty-state">
-                <div class="empty-icon">📂</div>
-                <div class="empty-text">لا توجد مشاريع</div>
-              </div>
-            </div>
-
-            <div class="screen" id="screen-project">
-              <header class="app-header">
-                <button class="icon-btn" onclick="backToProjects()">←</button>
-                <div style="flex:1;margin-right:12px">
-                  <div class="greeting">المشروع</div>
-                  <h1 class="app-title" id="project-title">—</h1>
-                </div>
-                <button class="icon-btn" onclick="deleteCurrentProject()" title="حذف">🗑️</button>
-              </header>
-              <div style="display:flex;gap:10px;margin-bottom:16px">
-                <button class="add-clip-btn" style="flex:1" onclick="addClipToProject()">
-                  <span class="plus">+</span> إضافة مقطع
-                </button>
-                <button class="add-clip-btn" style="flex:0;padding:16px 20px;background:linear-gradient(135deg,#10B981,#059669)" onclick="openEditor()">✏️</button>
-              </div>
-              <div id="clips-list" class="clips-list">
-                <div class="empty-state">
-                  <div class="empty-icon">🎞️</div>
-                  <div class="empty-text">لا توجد مقاطع</div>
-                  <div class="empty-hint">أضف أول مقطع من زر الأعلى</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- شاشة المحرر -->
-            <div class="screen" id="screen-editor">
-              <header class="app-header">
-                <button class="icon-btn" onclick="closeEditor()">←</button>
-                <div style="flex:1;margin-right:12px">
-                  <div class="greeting">المحرر</div>
-                  <h1 class="app-title" id="editor-title">—</h1>
-                </div>
-                <button class="icon-btn" onclick="exportProject()" title="تصدير">📤</button>
-              </header>
-
-              <div class="preview-wrap">
-                <canvas id="preview-canvas" width="640" height="360"></canvas>
-                <div class="preview-progress"><div id="preview-progress-bar"></div></div>
-                <button class="preview-play" id="preview-play" onclick="previewProject()">▶️</button>
-              </div>
-
-              <div class="editor-tools">
-                <button class="tool-btn" onclick="openOverlayModal()">
-                  <div class="tool-btn-icon">📝</div><div class="tool-btn-label">نص</div>
-                </button>
-                <button class="tool-btn" onclick="showOverlaysList()">
-                  <div class="tool-btn-icon">📋</div><div class="tool-btn-label">النصوص</div>
-                </button>
-              </div>
-
-              <h3 class="section-title" style="margin-top:20px">المقاطع</h3>
-              <div id="editor-timeline" class="editor-timeline"></div>
-            </div>
-
-            <div class="screen" id="screen-settings">
-              <header class="app-header"><h1 class="app-title">الإعدادات</h1></header>
-              <div class="settings-list">
-                <div class="setting-item" onclick="toggleTheme()">
-                  <div class="setting-icon">🌓</div>
-                  <div class="setting-info">
-                    <div class="setting-name">الوضع الداكن</div>
-                    <div class="setting-desc">تبديل الفاتح والداكن</div>
-                  </div><div class="toggle"></div>
-                </div>
-                <div class="setting-item">
-                  <div class="setting-icon">ℹ️</div>
-                  <div class="setting-info">
-                    <div class="setting-name">الإصدار</div>
-                    <div class="setting-desc" id="app-version">—</div>
-                  </div>
-                </div>
-                <div class="setting-item" onclick="clearStorage()">
-                  <div class="setting-icon">🗑️</div>
-                  <div class="setting-info">
-                    <div class="setting-name">مسح كل البيانات</div>
-                    <div class="setting-desc">حذف المشاريع والمقاطع</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Modal: قص -->
-            <div class="modal hidden" id="trim-modal">
-              <div class="modal-content">
-                <h2>تعديل القص</h2>
-                <div class="trim-row">
-                  <label>البداية: <span id="trim-start-val">0.0s</span></label>
-                  <input type="range" id="trim-start" min="0" max="100" step="0.5" value="0">
-                </div>
-                <div class="trim-row">
-                  <label>النهاية: <span id="trim-end-val">0.0s</span></label>
-                  <input type="range" id="trim-end" min="0" max="100" step="0.5" value="100">
-                </div>
-                <div class="modal-buttons">
-                  <button onclick="cancelTrim()">إلغاء</button>
-                  <button class="primary" onclick="saveTrim()">حفظ</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Modal: نص -->
-            <div class="modal hidden" id="overlay-modal">
-              <div class="modal-content">
-                <h2>إضافة نص</h2>
-                <input type="text" id="overlay-text" placeholder="اكتب النص هنا" maxlength="60">
-                <div class="color-picker" id="color-picker">
-                  <button data-color="#FFFFFF" style="background:#FFFFFF" class="active"></button>
-                  <button data-color="#FBBF24" style="background:#FBBF24"></button>
-                  <button data-color="#EF4444" style="background:#EF4444"></button>
-                  <button data-color="#10B981" style="background:#10B981"></button>
-                  <button data-color="#3B82F6" style="background:#3B82F6"></button>
-                </div>
-                <div class="modal-buttons">
-                  <button onclick="cancelOverlay()">إلغاء</button>
-                  <button class="primary" onclick="saveOverlay()">إضافة</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Modal: قائمة النصوص -->
-            <div class="modal hidden" id="overlays-list-modal">
-              <div class="modal-content">
-                <h2>النصوص المضافة</h2>
-                <div id="overlays-list-content"></div>
-                <div class="modal-buttons">
-                  <button onclick="hideOverlaysList()">إغلاق</button>
-                </div>
-              </div>
-            </div>
-
-            <nav class="bottom-nav">
-              <button class="nav-btn active" data-screen="home" onclick="switchScreen('home')">
-                <span class="nav-icon">🏠</span><span class="nav-label">الرئيسية</span>
+          <div class="screen active" id="screen-home">
+            <header class="app-header">
+              <div><div class="greeting">أهلاً بك 👋</div><h1 class="app-title">استوديو الفيديو</h1></div>
+              <button class="icon-btn" onclick="toggleTheme()"><span id="theme-icon">🌙</span></button>
+            </header>
+            <div class="quick-actions">
+              <button class="action-card action-primary" onclick="startNewProject()">
+                <div class="action-icon">🎬</div><div class="action-label">مشروع جديد</div>
+                <div class="action-sub">ابدأ التحرير</div>
               </button>
-              <button class="nav-btn" data-screen="projects" onclick="switchScreen('projects')">
-                <span class="nav-icon">📁</span><span class="nav-label">مشاريعي</span>
+              <button class="action-card" onclick="openGallery()">
+                <div class="action-icon">📁</div><div class="action-label">مشاريعي</div>
+                <div class="action-sub" id="projects-count">0 مشروع</div>
               </button>
-              <button class="nav-btn" data-screen="settings" onclick="switchScreen('settings')">
-                <span class="nav-icon">⚙️</span><span class="nav-label">الإعدادات</span>
-              </button>
-            </nav>
+            </div>
+            <section class="section">
+              <h2 class="section-title">أدوات سريعة</h2>
+              <div class="tools-grid">
+                <div class="tool" onclick="soon('قص')"><div class="tool-icon">✂️</div><div>قص</div></div>
+                <div class="tool" onclick="soon('دمج')"><div class="tool-icon">🔗</div><div>دمج</div></div>
+                <div class="tool" onclick="soon('نص')"><div class="tool-icon">📝</div><div>نص</div></div>
+                <div class="tool" onclick="soon('موسيقى')"><div class="tool-icon">🎵</div><div>موسيقى</div></div>
+                <div class="tool" onclick="soon('فلاتر')"><div class="tool-icon">🎨</div><div>فلاتر</div></div>
+                <div class="tool" onclick="soon('تحويل')"><div class="tool-icon">🔄</div><div>تحويل</div></div>
+                <div class="tool" onclick="soon('ضغط')"><div class="tool-icon">📉</div><div>ضغط</div></div>
+                <div class="tool" onclick="soon('غلاف')"><div class="tool-icon">🖼️</div><div>غلاف</div></div>
+              </div>
+            </section>
+            <section class="section">
+              <h2 class="section-title">آخر المشاريع</h2>
+              <div id="recent-projects" class="empty-state">
+                <div class="empty-icon">📺</div><div class="empty-text">لا توجد مشاريع بعد</div>
+                <div class="empty-hint">اضغط «مشروع جديد» للبدء</div>
+              </div>
+            </section>
+          </div>
 
-            <script src="js/db.js"></script>
-            <script src="js/app.js"></script>
-            <script src="js/gallery.js"></script>
-            <script src="js/editor.js"></script>
+          <div class="screen" id="screen-projects">
+            <header class="app-header"><h1 class="app-title">مشاريعي</h1></header>
+            <div id="projects-list" class="empty-state">
+              <div class="empty-icon">📂</div><div class="empty-text">لا توجد مشاريع</div>
+            </div>
+          </div>
+
+          <div class="screen" id="screen-project">
+            <header class="app-header">
+              <button class="icon-btn" onclick="backToProjects()">←</button>
+              <div style="flex:1;margin-right:12px">
+                <div class="greeting">المشروع</div>
+                <h1 class="app-title" id="project-title">—</h1>
+              </div>
+              <button class="icon-btn" onclick="deleteCurrentProject()">🗑️</button>
+            </header>
+
+            <div class="aspect-row">
+              <span class="aspect-label">📐 نسبة العرض:</span>
+              <div class="aspect-btns">
+                <button data-ar="9:16" onclick="setAspectRatio('9:16')">9:16</button>
+                <button data-ar="1:1" onclick="setAspectRatio('1:1')">1:1</button>
+                <button data-ar="16:9" onclick="setAspectRatio('16:9')">16:9</button>
+                <button data-ar="4:5" onclick="setAspectRatio('4:5')">4:5</button>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-bottom:16px">
+              <button class="add-clip-btn" style="flex:1" onclick="addClipToProject()"><span class="plus">+</span> إضافة مقطع</button>
+              <button class="add-clip-btn" style="flex:0;padding:16px 20px;background:linear-gradient(135deg,#10B981,#059669)" onclick="openEditor()">✏️</button>
+            </div>
+            <div id="clips-list" class="clips-list">
+              <div class="empty-state"><div class="empty-icon">🎞️</div>
+              <div class="empty-text">لا توجد مقاطع</div><div class="empty-hint">أضف أول مقطع من زر الأعلى</div></div>
+            </div>
+          </div>
+
+          <div class="screen" id="screen-editor">
+            <header class="app-header">
+              <button class="icon-btn" onclick="closeEditor()">←</button>
+              <div style="flex:1;margin-right:12px">
+                <div class="greeting">المحرر</div>
+                <h1 class="app-title" id="editor-title">—</h1>
+              </div>
+              <button class="icon-btn" onclick="exportProject()">📤</button>
+            </header>
+            <div class="preview-wrap">
+              <canvas id="preview-canvas" width="640" height="360"></canvas>
+              <div class="preview-progress"><div id="preview-progress-bar"></div></div>
+              <button class="preview-play" id="preview-play" onclick="previewProject()">▶️</button>
+            </div>
+            <div class="editor-tools">
+              <button class="tool-btn" onclick="openOverlayModal()"><div class="tool-btn-icon">📝</div><div class="tool-btn-label">نص</div></button>
+              <button class="tool-btn" onclick="openStickerModal()"><div class="tool-btn-icon">😀</div><div class="tool-btn-label">ملصق</div></button>
+              <button class="tool-btn" onclick="showOverlaysList()"><div class="tool-btn-icon">📋</div><div class="tool-btn-label">العناصر</div></button>
+              <button class="tool-btn" onclick="openMusicModal()"><div class="tool-btn-icon">🎵</div><div class="tool-btn-label">موسيقى</div></button>
+            </div>
+            <h3 class="section-title" style="margin-top:20px">المقاطع</h3>
+            <p class="hint-text">اضغط أي مقطع لفتح أدواته</p>
+            <div id="editor-timeline" class="editor-timeline"></div>
+          </div>
+
+          <div class="screen" id="screen-settings">
+            <header class="app-header"><h1 class="app-title">الإعدادات</h1></header>
+            <div class="settings-list">
+              <div class="setting-item" onclick="toggleTheme()">
+                <div class="setting-icon">🌓</div>
+                <div class="setting-info"><div class="setting-name">الوضع الداكن</div>
+                <div class="setting-desc">تبديل الفاتح والداكن</div></div>
+                <div class="toggle"></div>
+              </div>
+              <div class="setting-item"><div class="setting-icon">ℹ️</div>
+                <div class="setting-info"><div class="setting-name">الإصدار</div>
+                <div class="setting-desc" id="app-version">—</div></div>
+              </div>
+              <div class="setting-item" onclick="clearStorage()">
+                <div class="setting-icon">🗑️</div>
+                <div class="setting-info"><div class="setting-name">مسح كل البيانات</div>
+                <div class="setting-desc">حذف المشاريع والمقاطع</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="trim-modal">
+            <div class="modal-content">
+              <h2>✂️ تعديل القص</h2>
+              <div class="trim-row"><label>البداية: <span id="trim-start-val">0.0s</span></label>
+                <input type="range" id="trim-start" min="0" max="100" step="0.1" value="0"></div>
+              <div class="trim-row"><label>النهاية: <span id="trim-end-val">0.0s</span></label>
+                <input type="range" id="trim-end" min="0" max="100" step="0.1" value="100"></div>
+              <div class="modal-buttons">
+                <button onclick="cancelTrim()">إلغاء</button>
+                <button class="primary" onclick="saveTrim()">حفظ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="filter-modal">
+            <div class="modal-content">
+              <h2>🎨 اختر فلتراً</h2>
+              <div class="filter-grid" id="filter-grid"></div>
+              <div class="modal-buttons">
+                <button onclick="cancelFilter()">إلغاء</button>
+                <button class="primary" onclick="saveFilter()">حفظ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="speed-modal">
+            <div class="modal-content">
+              <h2>⚡ سرعة المقطع</h2>
+              <div class="speed-grid" id="speed-grid">
+                <button data-speed="0.5">0.5x</button>
+                <button data-speed="1">1x</button>
+                <button data-speed="1.5">1.5x</button>
+                <button data-speed="2">2x</button>
+              </div>
+              <div class="modal-buttons">
+                <button onclick="cancelSpeed()">إلغاء</button>
+                <button class="primary" onclick="saveSpeed()">حفظ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="transition-modal">
+            <div class="modal-content">
+              <h2>🌅 الانتقال</h2>
+              <div class="transition-grid" id="transition-grid">
+                <button data-trans="none">بدون</button>
+                <button data-trans="fade">Fade</button>
+                <button data-trans="slide">انزلاق</button>
+                <button data-trans="zoom">تكبير</button>
+                <button data-trans="blur">ضبابي</button>
+                <button data-trans="flash">فلاش</button>
+              </div>
+              <div class="modal-buttons">
+                <button onclick="cancelTransition()">إلغاء</button>
+                <button class="primary" onclick="saveTransition()">حفظ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="grade-modal">
+            <div class="modal-content">
+              <h2>🎛️ التدريج اللوني</h2>
+              <div class="trim-row"><label>السطوع: <span id="grade-bright-val">100%</span></label>
+                <input type="range" id="grade-brightness" min="0.5" max="1.8" step="0.05" value="1"></div>
+              <div class="trim-row"><label>التباين: <span id="grade-contrast-val">100%</span></label>
+                <input type="range" id="grade-contrast" min="0.5" max="1.8" step="0.05" value="1"></div>
+              <div class="trim-row"><label>التشبّع: <span id="grade-sat-val">100%</span></label>
+                <input type="range" id="grade-saturation" min="0" max="2" step="0.05" value="1"></div>
+              <label class="check-row"><input type="checkbox" id="grade-vignette"> تفعيل Vignette (تعتيم أطراف)</label>
+              <div class="modal-buttons">
+                <button onclick="cancelGrade()">إلغاء</button>
+                <button class="primary" onclick="saveGrade()">حفظ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="volume-modal">
+            <div class="modal-content">
+              <h2>🔊 مستوى الصوت</h2>
+              <div class="trim-row"><label>الصوت: <span id="volume-val">100%</span></label>
+                <input type="range" id="volume-slider" min="0" max="100" step="1" value="100"></div>
+              <div class="modal-buttons">
+                <button onclick="cancelVolume()">إلغاء</button>
+                <button class="primary" onclick="saveVolume()">حفظ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="overlay-modal">
+            <div class="modal-content">
+              <h2>📝 إضافة نص</h2>
+              <input type="text" id="overlay-text" placeholder="اكتب النص هنا" maxlength="60">
+              <label class="field-label">اللون:</label>
+              <div class="color-picker" id="color-picker">
+                <button data-color="#FFFFFF" style="background:#FFFFFF" class="active"></button>
+                <button data-color="#FBBF24" style="background:#FBBF24"></button>
+                <button data-color="#EF4444" style="background:#EF4444"></button>
+                <button data-color="#10B981" style="background:#10B981"></button>
+                <button data-color="#3B82F6" style="background:#3B82F6"></button>
+                <button data-color="#A855F7" style="background:#A855F7"></button>
+              </div>
+              <label class="field-label">الموضع:</label>
+              <div class="segmented" id="overlay-position">
+                <button data-pos="top">أعلى</button>
+                <button data-pos="middle" class="active">وسط</button>
+                <button data-pos="bottom">أسفل</button>
+              </div>
+              <label class="field-label">الحركة:</label>
+              <div class="segmented" id="overlay-anim">
+                <button data-anim="none" class="active">بدون</button>
+                <button data-anim="fade">تلاشي</button>
+                <button data-anim="typewriter">كتابة</button>
+                <button data-anim="bounce">نطّ</button>
+              </div>
+              <label class="check-row"><input type="checkbox" id="overlay-outline"> إطار أسود حول النص</label>
+              <div class="modal-buttons">
+                <button onclick="cancelOverlay()">إلغاء</button>
+                <button class="primary" onclick="saveOverlay()">إضافة</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="sticker-modal">
+            <div class="modal-content">
+              <h2>😀 اختر ملصقاً</h2>
+              <div class="sticker-grid" id="sticker-grid"></div>
+              <label class="check-row"><input type="checkbox" id="sticker-animate"> تأثير نبض</label>
+              <div class="modal-buttons">
+                <button onclick="cancelSticker()">إلغاء</button>
+                <button class="primary" onclick="saveSticker()">إضافة</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="music-modal">
+            <div class="modal-content">
+              <h2>🎵 الموسيقى الخلفية</h2>
+              <p class="hint-text">ارفع ملف صوتي (mp3, m4a, wav) يعمل على كل المشروع</p>
+              <div id="current-music" style="margin-bottom:16px"></div>
+              <div class="modal-buttons">
+                <button onclick="cancelMusic()">إغلاق</button>
+                <button onclick="clearMusic()">حذف</button>
+                <button class="primary" onclick="pickMusic()">اختيار</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal hidden" id="overlays-list-modal">
+            <div class="modal-content">
+              <h2>📋 العناصر المضافة</h2>
+              <div id="overlays-list-content"></div>
+              <div class="modal-buttons"><button onclick="hideOverlaysList()">إغلاق</button></div>
+            </div>
+          </div>
+
+          <nav class="bottom-nav">
+            <button class="nav-btn active" data-screen="home" onclick="switchScreen('home')">
+              <span class="nav-icon">🏠</span><span class="nav-label">الرئيسية</span></button>
+            <button class="nav-btn" data-screen="projects" onclick="switchScreen('projects')">
+              <span class="nav-icon">📁</span><span class="nav-label">مشاريعي</span></button>
+            <button class="nav-btn" data-screen="settings" onclick="switchScreen('settings')">
+              <span class="nav-icon">⚙️</span><span class="nav-label">الإعدادات</span></button>
+          </nav>
+
+          <script src="js/db.js"></script>
+          <script src="js/app.js"></script>
+          <script src="js/gallery.js"></script>
+          <script src="js/editor.js"></script>
           </body>
           </html>
           __VS_EOF__
@@ -654,325 +664,231 @@ jobs:
             --text: #0F172A; --text-muted: #64748B;
             --border: rgba(15,23,42,0.1);
           }
-          body {
-            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+          body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
             background: var(--bg); color: var(--text); margin: 0;
-            padding: 0 0 90px 0; min-height: 100vh;
-            transition: background 0.3s, color 0.3s;
-          }
+            padding: 0 0 90px 0; min-height: 100vh; transition: background 0.3s, color 0.3s; }
           .screen { display: none; padding: 20px 20px 10px; animation: fadeIn 0.25s; }
           .screen.active { display: block; }
           @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
           .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
           .greeting { font-size: 0.85em; color: var(--text-muted); margin-bottom: 2px; }
           .app-title { font-size: 1.6em; margin: 0; font-weight: 700; }
-          .icon-btn {
-            background: var(--surface); border: 1px solid var(--border);
-            width: 44px; height: 44px; border-radius: 12px;
-            font-size: 1.3em; color: var(--text); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: transform 0.15s;
-          }
+          .icon-btn { background: var(--surface); border: 1px solid var(--border);
+            width: 44px; height: 44px; border-radius: 12px; font-size: 1.3em;
+            color: var(--text); cursor: pointer; display: flex; align-items: center;
+            justify-content: center; transition: transform 0.15s; }
           .icon-btn:active { transform: scale(0.92); }
           .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
-          .action-card {
-            background: var(--surface); border: 1px solid var(--border);
+          .action-card { background: var(--surface); border: 1px solid var(--border);
             border-radius: 18px; padding: 18px 16px; text-align: right;
             color: var(--text); cursor: pointer; transition: transform 0.15s;
-            min-height: 120px; display: flex; flex-direction: column;
-            justify-content: space-between;
-          }
+            min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; }
           .action-card:active { transform: scale(0.97); }
-          .action-card.action-primary {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            border: none; color: #fff;
-          }
+          .action-card.action-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none; color: #fff; }
           .action-icon { font-size: 1.8em; }
           .action-label { font-weight: 700; font-size: 1.05em; margin-top: 8px; }
           .action-sub { font-size: 0.8em; opacity: 0.75; margin-top: 2px; }
           .section { margin-bottom: 28px; }
           .section-title { font-size: 1.05em; font-weight: 700; margin: 0 0 14px; }
+          .hint-text { font-size: 0.78em; color: var(--text-muted); margin: 4px 0 12px; }
           .tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-          .tool {
-            background: var(--surface); border: 1px solid var(--border);
+          .tool { background: var(--surface); border: 1px solid var(--border);
             border-radius: 14px; padding: 14px 6px; text-align: center;
-            cursor: pointer; font-size: 0.75em; color: var(--text);
-            transition: transform 0.15s;
-          }
+            cursor: pointer; font-size: 0.75em; color: var(--text); transition: transform 0.15s; }
           .tool:active { transform: scale(0.92); }
           .tool-icon { font-size: 1.5em; margin-bottom: 6px; }
-          .empty-state {
-            text-align: center; padding: 40px 20px;
-            background: var(--surface); border: 1px dashed var(--border);
-            border-radius: 18px;
-          }
+          .empty-state { text-align: center; padding: 40px 20px;
+            background: var(--surface); border: 1px dashed var(--border); border-radius: 18px; }
           .empty-icon { font-size: 2.5em; margin-bottom: 10px; opacity: 0.5; }
           .empty-text { font-weight: 600; margin-bottom: 4px; }
           .empty-hint { font-size: 0.85em; color: var(--text-muted); }
-          .settings-list {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 18px; overflow: hidden;
-          }
-          .setting-item {
-            display: flex; align-items: center; padding: 16px;
-            border-bottom: 1px solid var(--border); cursor: pointer;
-            transition: background 0.15s;
-          }
+          .settings-list { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 18px; overflow: hidden; }
+          .setting-item { display: flex; align-items: center; padding: 16px;
+            border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
           .setting-item:last-child { border-bottom: none; }
           .setting-item:active { background: var(--surface-2); }
           .setting-icon { font-size: 1.4em; margin-left: 12px; }
           .setting-info { flex: 1; }
           .setting-name { font-weight: 600; margin-bottom: 2px; }
           .setting-desc { font-size: 0.8em; color: var(--text-muted); }
-          .toggle {
-            width: 44px; height: 26px; background: var(--surface-2);
-            border-radius: 13px; position: relative; transition: background 0.2s;
-          }
-          .toggle::after {
-            content: ''; position: absolute;
-            top: 3px; right: 3px; width: 20px; height: 20px;
-            background: #fff; border-radius: 50%; transition: transform 0.2s;
-          }
+          .toggle { width: 44px; height: 26px; background: var(--surface-2);
+            border-radius: 13px; position: relative; transition: background 0.2s; }
+          .toggle::after { content: ''; position: absolute; top: 3px; right: 3px;
+            width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
           body:not(.light) .toggle { background: var(--primary); }
           body:not(.light) .toggle::after { transform: translateX(-18px); }
-          .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
+          .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--surface); border-top: 1px solid var(--border);
-            display: flex; padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-            z-index: 100;
-          }
-          .nav-btn {
-            flex: 1; background: none; border: none; color: var(--text-muted);
-            padding: 8px 4px; cursor: pointer;
-            display: flex; flex-direction: column;
-            align-items: center; gap: 3px; transition: color 0.2s;
-          }
+            display: flex; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); z-index: 100; }
+          .nav-btn { flex: 1; background: none; border: none; color: var(--text-muted);
+            padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; gap: 3px; transition: color 0.2s; }
           .nav-btn.active { color: var(--primary); }
           .nav-icon { font-size: 1.3em; }
           .nav-label { font-size: 0.7em; font-weight: 600; }
-          .project-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 16px; padding: 14px;
-            display: flex; align-items: center; gap: 12px;
-            margin-bottom: 10px; cursor: pointer;
-            transition: transform 0.15s;
-          }
+          .project-card { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 14px; display: flex; align-items: center;
+            gap: 12px; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s; }
           .project-card:active { transform: scale(0.98); }
-          .project-thumb {
-            width: 56px; height: 56px; border-radius: 12px;
+          .project-thumb { width: 56px; height: 56px; border-radius: 12px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.6em; flex-shrink: 0;
-          }
+            font-size: 1.6em; flex-shrink: 0; }
           .project-info { flex: 1; min-width: 0; }
-          .project-name {
-            font-weight: 700; margin-bottom: 4px;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-          }
+          .project-name { font-weight: 700; margin-bottom: 4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .project-meta { font-size: 0.75em; color: var(--text-muted); }
-          .add-clip-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+          .aspect-row { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 14px; padding: 12px; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+          .aspect-label { font-size: 0.85em; font-weight: 600; }
+          .aspect-btns { display: flex; gap: 6px; flex: 1; }
+          .aspect-btns button { flex: 1; padding: 8px 4px; border-radius: 8px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); font-size: 0.78em; font-weight: 600; cursor: pointer; }
+          .aspect-btns button.active { border-color: var(--primary);
+            background: rgba(99,102,241,0.2); color: var(--primary); }
+          .add-clip-btn { width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: #fff; border: none; border-radius: 16px; padding: 16px;
             font-size: 1.05em; font-weight: 700; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            gap: 8px; transition: transform 0.15s;
-          }
+            gap: 8px; transition: transform 0.15s; }
           .add-clip-btn:active { transform: scale(0.97); }
           .add-clip-btn .plus { font-size: 1.4em; }
           .clips-list { display: flex; flex-direction: column; gap: 10px; }
-          .clip-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 16px; padding: 10px;
-            display: flex; align-items: center; gap: 12px;
-          }
-          .clip-thumb {
-            width: 80px; height: 60px; border-radius: 10px;
-            background: #000; object-fit: cover; flex-shrink: 0;
-          }
+          .clip-card { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 10px; display: flex; align-items: center; gap: 12px; }
+          .clip-thumb { width: 80px; height: 60px; border-radius: 10px;
+            background: #000; object-fit: cover; flex-shrink: 0; }
           .clip-info { flex: 1; min-width: 0; }
-          .clip-name {
-            font-weight: 600; font-size: 0.9em; margin-bottom: 4px;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-          }
+          .clip-name { font-weight: 600; font-size: 0.9em; margin-bottom: 4px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .clip-meta { font-size: 0.72em; color: var(--text-muted); }
-          .clip-delete {
-            background: transparent; border: none; color: var(--danger);
-            font-size: 1.3em; cursor: pointer; padding: 6px; border-radius: 8px;
-          }
+          .clip-delete { background: transparent; border: none; color: var(--danger);
+            font-size: 1.3em; cursor: pointer; padding: 6px; border-radius: 8px; }
           .clip-delete:active { background: rgba(239,68,68,0.1); }
-          .loading-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15,23,42,0.85);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 9999; color: #fff; font-weight: 600;
-            flex-direction: column; gap: 16px; padding: 20px;
-            text-align: center;
-          }
+          .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15,23,42,0.85); display: flex; align-items: center;
+            justify-content: center; z-index: 9999; color: #fff; font-weight: 600;
+            flex-direction: column; gap: 16px; padding: 20px; text-align: center; }
           .loading-overlay.hidden { display: none; }
-          .loading-bar {
-            width: 200px; height: 6px; background: rgba(255,255,255,0.15);
-            border-radius: 3px; overflow: hidden;
-          }
-          .loading-bar > div {
-            height: 100%; background: var(--primary); width: 0%;
-            transition: width 0.2s;
-          }
-          /* === المحرر === */
-          .preview-wrap {
-            position: relative; margin-bottom: 16px;
+          .loading-bar { width: 200px; height: 6px; background: rgba(255,255,255,0.15);
+            border-radius: 3px; overflow: hidden; }
+          .loading-bar > div { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
+          .preview-wrap { position: relative; margin-bottom: 16px;
             border-radius: 16px; overflow: hidden; background: #000;
-          }
-          #preview-canvas {
-            width: 100%; display: block; aspect-ratio: 16/9;
-            background: #000;
-          }
-          .preview-progress {
-            height: 4px; background: rgba(255,255,255,0.15);
-          }
-          .preview-progress > div {
-            height: 100%; background: var(--primary); width: 0%;
-            transition: width 0.1s;
-          }
-          .preview-play {
-            position: absolute; bottom: 20px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(99,102,241,0.95); color: #fff;
-            border: none; width: 56px; height: 56px;
-            border-radius: 50%; font-size: 1.4em;
-            cursor: pointer; display: flex;
-            align-items: center; justify-content: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            transition: transform 0.15s;
-          }
-          .preview-play:active { transform: translateX(-50%) scale(0.92); }
-          .editor-tools {
-            display: flex; gap: 10px; margin-bottom: 16px;
-          }
-          .tool-btn {
-            flex: 1; background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px; padding: 14px;
-            color: var(--text); cursor: pointer;
-            display: flex; flex-direction: column;
-            align-items: center; gap: 4px;
-            transition: transform 0.15s;
-          }
-          .tool-btn:active { transform: scale(0.94); }
-          .tool-btn-icon { font-size: 1.4em; }
-          .tool-btn-label { font-size: 0.8em; font-weight: 600; }
-          .editor-timeline {
-            display: flex; gap: 10px; overflow-x: auto;
-            padding-bottom: 8px; margin-bottom: 20px;
-          }
-          .editor-timeline::-webkit-scrollbar { height: 4px; }
-          .editor-timeline::-webkit-scrollbar-thumb {
-            background: var(--surface-2); border-radius: 2px;
-          }
-          .timeline-clip {
-            flex-shrink: 0; width: 120px;
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 12px; overflow: hidden;
-            cursor: pointer; transition: transform 0.15s;
-          }
-          .timeline-clip:active { transform: scale(0.95); }
-          .timeline-clip.selected {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(99,102,241,0.3);
-          }
-          .timeline-thumb {
-            width: 120px; height: 68px; object-fit: cover;
-            background: #000; display: block;
-          }
-          .timeline-info {
-            padding: 6px 8px; font-size: 0.7em;
-            display: flex; justify-content: space-between;
-            color: var(--text-muted);
-          }
-          .timeline-controls {
-            display: flex; border-top: 1px solid var(--border);
-          }
-          .timeline-controls button {
-            flex: 1; background: none; border: none;
-            color: var(--text); padding: 6px 4px;
-            cursor: pointer; font-size: 1em;
-          }
-          .timeline-controls button:active { background: var(--surface-2); }
-          /* === Modals === */
-          .modal {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7);
+            display: flex; justify-content: center; align-items: center;
+            max-height: 55vh; }
+          #preview-canvas { display: block; max-width: 100%; max-height: 55vh; background: #000; }
+          .preview-progress { height: 4px; background: rgba(255,255,255,0.15); }
+          .preview-progress > div { height: 100%; background: var(--primary); width: 0%; transition: width 0.1s; }
+          .preview-play { position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%); background: rgba(99,102,241,0.95);
+            color: #fff; border: none; width: 56px; height: 56px;
+            border-radius: 50%; font-size: 1.4em; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            z-index: 500; padding: 20px;
-            animation: fadeIn 0.2s;
-          }
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4); transition: transform 0.15s; }
+          .preview-play:active { transform: translateX(-50%) scale(0.92); }
+          .editor-tools { display: flex; gap: 8px; margin-bottom: 16px; }
+          .tool-btn { flex: 1; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 14px; padding: 12px 4px; color: var(--text); cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            transition: transform 0.15s; }
+          .tool-btn:active { transform: scale(0.94); }
+          .tool-btn-icon { font-size: 1.3em; }
+          .tool-btn-label { font-size: 0.7em; font-weight: 600; }
+          .editor-timeline { display: flex; gap: 10px; overflow-x: auto;
+            padding-bottom: 8px; margin-bottom: 20px; }
+          .editor-timeline::-webkit-scrollbar { height: 4px; }
+          .editor-timeline::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 2px; }
+          .timeline-clip { flex-shrink: 0; width: 140px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.15s; }
+          .timeline-clip:active { transform: scale(0.95); }
+          .timeline-thumb { width: 140px; height: 79px; object-fit: cover;
+            background: #000; display: block; }
+          .timeline-info { padding: 6px 8px; font-size: 0.7em;
+            display: flex; justify-content: space-between; color: var(--text-muted); }
+          .timeline-badges { padding: 0 8px 6px; font-size: 0.65em;
+            color: var(--primary); display: flex; gap: 6px; flex-wrap: wrap; }
+          .timeline-controls { display: flex; border-top: 1px solid var(--border); }
+          .timeline-controls button { flex: 1; background: none; border: none;
+            color: var(--text); padding: 7px 2px; cursor: pointer; font-size: 0.9em; }
+          .timeline-controls button:active { background: var(--surface-2); }
+          .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); display: flex; align-items: center;
+            justify-content: center; z-index: 500; padding: 20px; animation: fadeIn 0.2s; }
           .modal.hidden { display: none; }
-          .modal-content {
-            background: var(--surface); border-radius: 20px;
-            padding: 24px; width: 100%; max-width: 400px;
-            animation: slideUp 0.25s;
-          }
-          @keyframes slideUp {
-            from { transform: translateY(40px); opacity: 0; }
-            to { transform: none; opacity: 1; }
-          }
+          .modal-content { background: var(--surface); border-radius: 20px;
+            padding: 24px; width: 100%; max-width: 440px; animation: slideUp 0.25s;
+            max-height: 85vh; overflow-y: auto; }
+          @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
           .modal-content h2 { margin: 0 0 16px; font-size: 1.2em; }
           .trim-row { margin-bottom: 16px; }
-          .trim-row label {
-            display: block; font-size: 0.85em;
-            color: var(--text-muted); margin-bottom: 6px;
-          }
-          .trim-row input[type="range"] {
-            width: 100%; accent-color: var(--primary);
-          }
-          .modal-content input[type="text"] {
-            width: 100%; background: var(--surface-2);
+          .trim-row label { display: block; font-size: 0.85em; color: var(--text-muted); margin-bottom: 6px; }
+          .trim-row input[type="range"] { width: 100%; accent-color: var(--primary); }
+          .modal-content input[type="text"] { width: 100%; background: var(--surface-2);
             border: 1px solid var(--border); border-radius: 12px;
-            padding: 12px; color: var(--text);
-            font-size: 1em; margin-bottom: 16px;
-          }
-          .color-picker {
-            display: flex; gap: 8px; margin-bottom: 20px;
-            justify-content: center;
-          }
-          .color-picker button {
-            width: 36px; height: 36px; border-radius: 50%;
-            border: 2px solid transparent;
-            cursor: pointer; transition: transform 0.15s;
-          }
-          .color-picker button.active {
-            border-color: var(--text); transform: scale(1.1);
-          }
-          .modal-buttons {
-            display: flex; gap: 10px; margin-top: 8px;
-          }
-          .modal-buttons button {
-            flex: 1; padding: 12px; border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--surface-2); color: var(--text);
-            font-size: 0.95em; font-weight: 600; cursor: pointer;
-          }
-          .modal-buttons button.primary {
-            background: var(--primary); color: #fff;
-            border-color: var(--primary);
-          }
-          .overlay-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px; border-radius: 10px;
-            background: var(--surface-2); margin-bottom: 8px;
-          }
+            padding: 12px; color: var(--text); font-size: 1em; margin-bottom: 12px; }
+          .color-picker { display: flex; gap: 8px; margin-bottom: 12px; justify-content: center; }
+          .color-picker button { width: 36px; height: 36px; border-radius: 50%;
+            border: 2px solid transparent; cursor: pointer; transition: transform 0.15s; }
+          .color-picker button.active { border-color: var(--text); transform: scale(1.1); }
+          .check-row { display: flex; align-items: center; gap: 8px;
+            font-size: 0.9em; margin-bottom: 12px; color: var(--text-muted); cursor: pointer; }
+          .check-row input { accent-color: var(--primary); width: 18px; height: 18px; }
+          .field-label { display: block; font-size: 0.85em; color: var(--text-muted); margin: 10px 0 6px; }
+          .segmented { display: flex; gap: 6px; margin-bottom: 12px; }
+          .segmented button { flex: 1; padding: 10px 4px; border-radius: 10px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); font-size: 0.78em; font-weight: 600; cursor: pointer; }
+          .segmented button.active { border-color: var(--primary);
+            background: rgba(99,102,241,0.2); color: var(--primary); }
+          .modal-buttons { display: flex; gap: 10px; margin-top: 12px; }
+          .modal-buttons button { flex: 1; padding: 12px; border-radius: 12px;
+            border: 1px solid var(--border); background: var(--surface-2);
+            color: var(--text); font-size: 0.95em; font-weight: 600; cursor: pointer; }
+          .modal-buttons button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+          .filter-grid { display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 8px; margin-bottom: 16px; }
+          .filter-grid button { padding: 12px 4px; border-radius: 10px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); cursor: pointer; font-size: 0.75em; font-weight: 600;
+            transition: transform 0.15s; }
+          .filter-grid button.active { border-color: var(--primary);
+            background: rgba(99,102,241,0.15); }
+          .filter-grid button:active { transform: scale(0.94); }
+          .speed-grid, .transition-grid { display: grid;
+            grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+          .speed-grid button, .transition-grid button { padding: 14px;
+            border-radius: 12px; background: var(--surface-2);
+            border: 1px solid var(--border); color: var(--text);
+            cursor: pointer; font-size: 0.95em; font-weight: 600;
+            transition: transform 0.15s; }
+          .speed-grid button.active, .transition-grid button.active {
+            border-color: var(--primary); background: rgba(99,102,241,0.15); }
+          .speed-grid button:active, .transition-grid button:active { transform: scale(0.94); }
+          .sticker-grid { display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 8px; margin-bottom: 16px; }
+          .sticker-grid button { background: var(--surface-2);
+            border: 2px solid transparent; border-radius: 10px;
+            font-size: 1.8em; padding: 10px; cursor: pointer; transition: transform 0.15s; }
+          .sticker-grid button.active { border-color: var(--primary);
+            transform: scale(1.1); background: rgba(99,102,241,0.2); }
+          .overlay-item { display: flex; align-items: center; gap: 10px;
+            padding: 10px; border-radius: 10px; background: var(--surface-2);
+            margin-bottom: 8px; }
           .overlay-text-preview { flex: 1; font-weight: 600; }
-          .overlay-del {
-            background: transparent; border: none;
-            color: var(--danger); font-size: 1.2em;
-            cursor: pointer;
-          }
+          .overlay-del { background: transparent; border: none;
+            color: var(--danger); font-size: 1.2em; cursor: pointer; }
           __VS_EOF__
 
           cat > app/src/main/assets/js/db.js << '__VS_EOF__'
           const VDB = (() => {
             const DB_NAME = 'videostudio_db';
-            const DB_VERSION = 1;
+            const DB_VERSION = 2;
             let dbPromise = null;
             function open() {
               if (dbPromise) return dbPromise;
@@ -981,8 +897,11 @@ jobs:
                 req.onupgradeneeded = (e) => {
                   const db = e.target.result;
                   if (!db.objectStoreNames.contains('clips')) {
-                    const store = db.createObjectStore('clips', { keyPath: 'id' });
-                    store.createIndex('projectId', 'projectId', { unique: false });
+                    const s = db.createObjectStore('clips', { keyPath: 'id' });
+                    s.createIndex('projectId', 'projectId', { unique: false });
+                  }
+                  if (!db.objectStoreNames.contains('music')) {
+                    const s = db.createObjectStore('music', { keyPath: 'projectId' });
                   }
                 };
                 req.onsuccess = () => resolve(req.result);
@@ -995,32 +914,39 @@ jobs:
               return new Promise((resolve, reject) => {
                 const t = db.transaction(store, mode);
                 const s = t.objectStore(store);
-                const result = fn(s);
-                t.oncomplete = () => resolve(result);
+                const r = fn(s);
+                t.oncomplete = () => resolve(r);
                 t.onerror = () => reject(t.error);
               });
             }
             return {
-              async addClip(clip) { return tx('clips', 'readwrite', s => s.add(clip)); },
-              async updateClip(clip) { return tx('clips', 'readwrite', s => s.put(clip)); },
-              async getClipsByProject(projectId) {
+              addClip: c => tx('clips', 'readwrite', s => s.add(c)),
+              updateClip: c => tx('clips', 'readwrite', s => s.put(c)),
+              async getClipsByProject(pid) {
                 const db = await open();
                 return new Promise((resolve, reject) => {
                   const t = db.transaction('clips', 'readonly');
-                  const idx = t.objectStore('clips').index('projectId');
-                  const req = idx.getAll(projectId);
-                  req.onsuccess = () => resolve(
-                    req.result.sort((a, b) => (a.order || 0) - (b.order || 0))
-                  );
+                  const req = t.objectStore('clips').index('projectId').getAll(pid);
+                  req.onsuccess = () => resolve(req.result.sort((a,b)=>(a.order||0)-(b.order||0)));
                   req.onerror = () => reject(req.error);
                 });
               },
-              async deleteClip(id) { return tx('clips', 'readwrite', s => s.delete(id)); },
-              async deleteClipsByProject(projectId) {
-                const clips = await this.getClipsByProject(projectId);
+              deleteClip: id => tx('clips', 'readwrite', s => s.delete(id)),
+              async deleteClipsByProject(pid) {
+                const clips = await this.getClipsByProject(pid);
                 for (const c of clips) await this.deleteClip(c.id);
               },
-              async clearAll() { return tx('clips', 'readwrite', s => s.clear()); }
+              clearAll: () => tx('clips', 'readwrite', s => s.clear()),
+              setMusic: m => tx('music', 'readwrite', s => s.put(m)),
+              getMusic: pid => new Promise(async (resolve, reject) => {
+                const db = await open();
+                const t = db.transaction('music', 'readonly');
+                const req = t.objectStore('music').get(pid);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+              }),
+              deleteMusic: pid => tx('music', 'readwrite', s => s.delete(pid)),
+              clearMusic: () => tx('music', 'readwrite', s => s.clear())
             };
           })();
           __VS_EOF__
@@ -1030,9 +956,7 @@ jobs:
             screen: 'home',
             theme: localStorage.getItem('theme') || 'dark',
             projects: JSON.parse(localStorage.getItem('projects') || '[]'),
-            currentProjectId: null,
-            editingClipId: null,
-            overlayColor: '#FFFFFF'
+            currentProjectId: null
           };
 
           document.addEventListener('DOMContentLoaded', () => {
@@ -1043,129 +967,115 @@ jobs:
               const el = document.getElementById('app-version');
               if (el) el.innerText = 'الإصدار ' + v;
             }
-            setupColorPicker();
           });
-
-          function setupColorPicker() {
-            const cp = document.getElementById('color-picker');
-            if (!cp) return;
-            cp.querySelectorAll('button').forEach(btn => {
-              btn.onclick = () => {
-                cp.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.overlayColor = btn.dataset.color;
-              };
-            });
-          }
 
           function switchScreen(name) {
             state.screen = name;
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            const target = document.getElementById('screen-' + name);
-            if (target) target.classList.add('active');
+            const t = document.getElementById('screen-' + name);
+            if (t) t.classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            const navBtn = document.querySelector('.nav-btn[data-screen="' + name + '"]');
-            if (navBtn) navBtn.classList.add('active');
+            const nb = document.querySelector('.nav-btn[data-screen="' + name + '"]');
+            if (nb) nb.classList.add('active');
             if (window.Android) Android.vibrate(15);
             window.scrollTo(0, 0);
             if (name === 'projects') updateProjectsUI();
           }
 
-          function applyTheme(theme) {
-            document.body.classList.toggle('light', theme === 'light');
-            const icon = document.getElementById('theme-icon');
-            if (icon) icon.innerText = theme === 'light' ? '☀️' : '🌙';
-            localStorage.setItem('theme', theme);
-            state.theme = theme;
+          function applyTheme(t) {
+            document.body.classList.toggle('light', t === 'light');
+            const i = document.getElementById('theme-icon');
+            if (i) i.innerText = t === 'light' ? '☀️' : '🌙';
+            localStorage.setItem('theme', t);
+            state.theme = t;
           }
-
           function toggleTheme() {
             applyTheme(state.theme === 'light' ? 'dark' : 'light');
             if (window.Android) Android.vibrate(20);
           }
-
-          function saveProjects() {
-            localStorage.setItem('projects', JSON.stringify(state.projects));
-          }
+          function saveProjects() { localStorage.setItem('projects', JSON.stringify(state.projects)); }
 
           function updateProjectsUI() {
-            const count = state.projects.length;
-            const countEl = document.getElementById('projects-count');
-            if (countEl) countEl.innerText = count + ' مشروع';
-            const listEl = document.getElementById('projects-list');
-            const recentEl = document.getElementById('recent-projects');
-            if (count === 0) {
-              if (listEl) listEl.innerHTML = emptyProjectsHTML();
-              if (recentEl) recentEl.innerHTML = emptyRecentHTML();
+            const c = state.projects.length;
+            const ce = document.getElementById('projects-count');
+            if (ce) ce.innerText = c + ' مشروع';
+            const le = document.getElementById('projects-list');
+            const re = document.getElementById('recent-projects');
+            if (c === 0) {
+              if (le) le.innerHTML = '<div class="empty-icon">📂</div><div class="empty-text">لا توجد مشاريع</div>';
+              if (re) re.innerHTML = '<div class="empty-icon">📺</div><div class="empty-text">لا توجد مشاريع بعد</div><div class="empty-hint">اضغط «مشروع جديد» للبدء</div>';
               return;
             }
-            const cardsHTML = state.projects.slice().reverse().map(p => projectCardHTML(p)).join('');
-            if (listEl) listEl.innerHTML = cardsHTML;
-            if (recentEl) {
-              recentEl.innerHTML = state.projects.slice(-2).reverse().map(p => projectCardHTML(p)).join('');
-            }
+            const html = state.projects.slice().reverse().map(p => projectCardHTML(p)).join('');
+            if (le) le.innerHTML = html;
+            if (re) re.innerHTML = state.projects.slice(-2).reverse().map(p => projectCardHTML(p)).join('');
           }
 
-          function emptyProjectsHTML() {
-            return '<div class="empty-icon">📂</div><div class="empty-text">لا توجد مشاريع</div>' +
-                   '<div class="empty-hint">ستظهر مشاريعك هنا</div>';
-          }
-          function emptyRecentHTML() {
-            return '<div class="empty-icon">📺</div><div class="empty-text">لا توجد مشاريع بعد</div>' +
-                   '<div class="empty-hint">اضغط «مشروع جديد» للبدء</div>';
-          }
           function projectCardHTML(p) {
-            const clipCount = p.clipCount || 0;
-            const ovCount = (p.overlays || []).length;
-            const dateStr = new Date(p.createdAt).toLocaleDateString('ar');
-            const extras = ovCount ? ' • ' + ovCount + ' نص' : '';
+            const cc = p.clipCount || 0;
+            const ov = (p.overlays || []).length;
+            const ar = p.aspectRatio || '16:9';
+            const ext = ov ? ' • ' + ov + ' عنصر' : '';
+            const mu = p.hasMusic ? ' 🎵' : '';
             return '<div class="project-card" onclick="openProject(\'' + p.id + '\')">' +
                    '<div class="project-thumb">🎬</div>' +
-                   '<div class="project-info"><div class="project-name">' + escapeHtml(p.name) + '</div>' +
-                   '<div class="project-meta">' + clipCount + ' مقطع' + extras + ' • ' + dateStr + '</div>' +
+                   '<div class="project-info"><div class="project-name">' + esc(p.name) + '</div>' +
+                   '<div class="project-meta">' + cc + ' مقطع' + ext + ' • ' + ar + mu + ' • ' + new Date(p.createdAt).toLocaleDateString('ar') + '</div>' +
                    '</div></div>';
           }
 
           function startNewProject() {
-            const name = prompt('اسم المشروع:', 'مشروع ' + (state.projects.length + 1));
-            if (!name || !name.trim()) return;
-            const project = {
-              id: 'p_' + Date.now(),
-              name: name.trim(),
-              createdAt: Date.now(),
-              clipCount: 0,
-              overlays: []
-            };
-            state.projects.push(project);
+            const n = prompt('اسم المشروع:', 'مشروع ' + (state.projects.length + 1));
+            if (!n || !n.trim()) return;
+            const p = { id: 'p_' + Date.now(), name: n.trim(), createdAt: Date.now(),
+              clipCount: 0, overlays: [], aspectRatio: '16:9', hasMusic: false };
+            state.projects.push(p);
             saveProjects();
             updateProjectsUI();
             if (window.Android) { Android.toast('تم إنشاء المشروع'); Android.vibrate(30); }
           }
 
           function openProject(id) {
-            const project = state.projects.find(p => p.id === id);
-            if (!project) return;
+            const p = state.projects.find(x => x.id === id);
+            if (!p) return;
             state.currentProjectId = id;
-            document.getElementById('project-title').innerText = project.name;
+            document.getElementById('project-title').innerText = p.name;
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-project').classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            updateAspectButtons();
             loadClipsForProject(id);
             window.scrollTo(0, 0);
           }
 
-          function backToProjects() {
-            state.currentProjectId = null;
-            switchScreen('projects');
+          function updateAspectButtons() {
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            const ar = p.aspectRatio || '16:9';
+            document.querySelectorAll('.aspect-btns button').forEach(b => {
+              b.classList.toggle('active', b.dataset.ar === ar);
+            });
           }
+
+          function setAspectRatio(ar) {
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            p.aspectRatio = ar;
+            saveProjects();
+            updateAspectButtons();
+            if (window.Android) { Android.toast('النسبة: ' + ar); Android.vibrate(20); }
+          }
+
+          function backToProjects() { state.currentProjectId = null; switchScreen('projects'); }
 
           function deleteCurrentProject() {
             if (!state.currentProjectId) return;
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            if (!project) return;
-            if (!confirm('حذف المشروع "' + project.name + '" وكل مقاطعه؟')) return;
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            if (!confirm('حذف المشروع "' + p.name + '"؟')) return;
             VDB.deleteClipsByProject(state.currentProjectId).catch(() => {});
-            state.projects = state.projects.filter(p => p.id !== state.currentProjectId);
+            VDB.deleteMusic(state.currentProjectId).catch(() => {});
+            state.projects = state.projects.filter(x => x.id !== state.currentProjectId);
             saveProjects();
             updateProjectsUI();
             state.currentProjectId = null;
@@ -1174,203 +1084,158 @@ jobs:
           }
 
           function openGallery() { switchScreen('projects'); }
-
-          function soon(name) {
-            if (window.Android) Android.toast(name + ' — قادم في تحديث لاحق');
+          function soon(n) {
+            if (window.Android) Android.toast(n + ' — قريباً');
             if (window.Android) Android.vibrate(20);
           }
-
           async function clearStorage() {
-            if (!confirm('حذف كل المشاريع والمقاطع نهائياً؟')) return;
-            try { await VDB.clearAll(); } catch (e) {}
+            if (!confirm('حذف كل البيانات؟')) return;
+            try { await VDB.clearAll(); await VDB.clearMusic(); } catch (e) {}
             localStorage.removeItem('projects');
             state.projects = [];
             updateProjectsUI();
-            if (window.Android) { Android.toast('تم مسح كل البيانات'); Android.vibrate(40); }
+            if (window.Android) { Android.toast('تم المسح'); Android.vibrate(40); }
           }
-
-          function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, c =>
-              ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-          }
+          function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
           window.handleBack = function() {
-            if (document.getElementById('screen-editor').classList.contains('active')) {
-              closeEditor();
-              return true;
-            }
-            if (document.getElementById('screen-project').classList.contains('active')) {
-              backToProjects();
-              return true;
-            }
+            if (document.getElementById('screen-editor').classList.contains('active')) { closeEditor(); return true; }
+            if (document.getElementById('screen-project').classList.contains('active')) { backToProjects(); return true; }
             if (state.screen === 'home') return false;
-            switchScreen('home');
-            return true;
+            switchScreen('home'); return true;
           };
           __VS_EOF__
 
           cat > app/src/main/assets/js/gallery.js << '__VS_EOF__'
-          function showLoading(text, pct) {
-            let overlay = document.querySelector('.loading-overlay');
-            if (!overlay) {
-              overlay = document.createElement('div');
-              overlay.className = 'loading-overlay';
-              document.body.appendChild(overlay);
-            }
-            let html = '<div>' + text + '</div>';
-            if (pct !== undefined) {
-              html += '<div class="loading-bar"><div style="width:' + pct + '%"></div></div>';
-            }
-            overlay.innerHTML = html;
-            overlay.classList.remove('hidden');
+          function showLoading(t, pct) {
+            let o = document.querySelector('.loading-overlay');
+            if (!o) { o = document.createElement('div'); o.className = 'loading-overlay'; document.body.appendChild(o); }
+            let h = '<div>' + t + '</div>';
+            if (pct !== undefined) h += '<div class="loading-bar"><div style="width:' + pct + '%"></div></div>';
+            o.innerHTML = h;
+            o.classList.remove('hidden');
           }
           function hideLoading() {
-            const overlay = document.querySelector('.loading-overlay');
-            if (overlay) overlay.classList.add('hidden');
+            const o = document.querySelector('.loading-overlay');
+            if (o) o.classList.add('hidden');
           }
 
           async function addClipToProject() {
             if (!state.currentProjectId) return;
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'video/*';
-            input.onchange = async (e) => {
-              const file = e.target.files[0];
-              if (file) await processVideoFile(file);
-            };
-            input.click();
+            const i = document.createElement('input');
+            i.type = 'file'; i.accept = 'video/*';
+            i.onchange = async (e) => { const f = e.target.files[0]; if (f) await processVideoFile(f); };
+            i.click();
           }
 
           async function processVideoFile(file) {
-            if (!file.type.startsWith('video/')) {
-              if (window.Android) Android.toast('الملف ليس فيديو');
-              return;
-            }
-            showLoading('جارٍ معالجة الفيديو...');
+            if (!file.type.startsWith('video/')) { if (window.Android) Android.toast('ليس فيديو'); return; }
+            showLoading('جارٍ المعالجة...');
             try {
-              const duration = await getVideoDuration(file);
-              const thumbnail = await getVideoThumbnail(file);
-              const existing = await VDB.getClipsByProject(state.currentProjectId);
+              const dur = await getVideoDuration(file);
+              const thumb = await getVideoThumbnail(file);
+              const ex = await VDB.getClipsByProject(state.currentProjectId);
               const clip = {
                 id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
                 projectId: state.currentProjectId,
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                duration: duration,
-                trimStart: 0,
-                trimEnd: duration,
-                order: existing.length,
-                thumbnail: thumbnail,
-                blob: file,
+                name: file.name, size: file.size, type: file.type,
+                duration: dur, trimStart: 0, trimEnd: dur,
+                filter: 'none', speed: 1, transition: 'none',
+                colorGrade: { brightness: 1, contrast: 1, saturation: 1, vignette: false },
+                volume: 1,
+                order: ex.length,
+                thumbnail: thumb, blob: file,
                 createdAt: Date.now()
               };
               await VDB.addClip(clip);
-              const project = state.projects.find(p => p.id === state.currentProjectId);
-              if (project) {
-                project.clipCount = (project.clipCount || 0) + 1;
-                saveProjects();
-              }
+              const p = state.projects.find(x => x.id === state.currentProjectId);
+              if (p) { p.clipCount = (p.clipCount || 0) + 1; saveProjects(); }
               await loadClipsForProject(state.currentProjectId);
               hideLoading();
               if (window.Android) { Android.toast('تمت إضافة المقطع'); Android.vibrate(50); }
-            } catch (err) {
+            } catch (e) {
               hideLoading();
-              console.error(err);
-              if (window.Android) Android.toast('فشل حفظ المقطع');
+              if (window.Android) Android.toast('فشل الحفظ');
             }
           }
 
           function getVideoDuration(file) {
-            return new Promise((resolve) => {
-              const url = URL.createObjectURL(file);
+            return new Promise(r => {
+              const u = URL.createObjectURL(file);
               const v = document.createElement('video');
               v.preload = 'metadata';
-              v.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(isFinite(v.duration) ? v.duration : 0); };
-              v.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
-              v.src = url;
+              v.onloadedmetadata = () => { URL.revokeObjectURL(u); r(isFinite(v.duration) ? v.duration : 0); };
+              v.onerror = () => { URL.revokeObjectURL(u); r(0); };
+              v.src = u;
             });
           }
-
           function getVideoThumbnail(file) {
-            return new Promise((resolve) => {
-              const url = URL.createObjectURL(file);
+            return new Promise(r => {
+              const u = URL.createObjectURL(file);
               const v = document.createElement('video');
               v.preload = 'auto'; v.muted = true; v.playsInline = true;
-              const cleanup = () => URL.revokeObjectURL(url);
-              v.onloadeddata = () => {
-                try { v.currentTime = Math.min(1, (v.duration || 1) / 2); }
-                catch (e) { cleanup(); resolve(''); }
-              };
+              const c = () => URL.revokeObjectURL(u);
+              v.onloadeddata = () => { try { v.currentTime = Math.min(1, (v.duration||1)/2); } catch(e){ c(); r(''); } };
               v.onseeked = () => {
                 try {
-                  const canvas = document.createElement('canvas');
-                  const w = 160;
-                  const h = Math.round((v.videoHeight / v.videoWidth) * w) || 120;
-                  canvas.width = w; canvas.height = h;
-                  canvas.getContext('2d').drawImage(v, 0, 0, w, h);
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-                  cleanup(); resolve(dataUrl);
-                } catch (e) { cleanup(); resolve(''); }
+                  const ca = document.createElement('canvas');
+                  const w = 160, h = Math.round((v.videoHeight/v.videoWidth)*w) || 120;
+                  ca.width = w; ca.height = h;
+                  ca.getContext('2d').drawImage(v, 0, 0, w, h);
+                  c(); r(ca.toDataURL('image/jpeg', 0.6));
+                } catch(e){ c(); r(''); }
               };
-              v.onerror = () => { cleanup(); resolve(''); };
-              v.src = url;
+              v.onerror = () => { c(); r(''); };
+              v.src = u;
             });
           }
 
-          async function loadClipsForProject(projectId) {
-            const container = document.getElementById('clips-list');
+          async function loadClipsForProject(pid) {
+            const ct = document.getElementById('clips-list');
             try {
-              const clips = await VDB.getClipsByProject(projectId);
-              if (!clips.length) {
-                container.innerHTML =
-                  '<div class="empty-state"><div class="empty-icon">🎞️</div>' +
-                  '<div class="empty-text">لا توجد مقاطع</div>' +
-                  '<div class="empty-hint">أضف أول مقطع من زر الأعلى</div></div>';
+              const cs = await VDB.getClipsByProject(pid);
+              if (!cs.length) {
+                ct.innerHTML = '<div class="empty-state"><div class="empty-icon">🎞️</div><div class="empty-text">لا توجد مقاطع</div><div class="empty-hint">أضف أول مقطع من زر الأعلى</div></div>';
                 return;
               }
-              container.innerHTML = clips.map(c => clipCardHTML(c)).join('');
+              ct.innerHTML = cs.map(c => clipCardHTML(c)).join('');
             } catch (e) {
-              container.innerHTML =
-                '<div class="empty-state"><div class="empty-icon">⚠️</div>' +
-                '<div class="empty-text">فشل تحميل المقاطع</div></div>';
+              ct.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">فشل التحميل</div></div>';
             }
           }
 
-          function clipCardHTML(clip) {
-            const dur = formatDuration(clip.duration);
-            const size = (clip.size / (1024 * 1024)).toFixed(1) + ' MB';
-            const trimNote = (clip.trimStart > 0 || clip.trimEnd < clip.duration) ? ' ✂️' : '';
-            const thumb = clip.thumbnail
-              ? '<img class="clip-thumb" src="' + clip.thumbnail + '" alt="">'
+          function clipCardHTML(c) {
+            const b = [];
+            if (c.filter && c.filter !== 'none') b.push('🎨');
+            if (c.speed && c.speed !== 1) b.push(c.speed + 'x');
+            if (c.transition && c.transition !== 'none') b.push('🌅');
+            if (c.colorGrade && (c.colorGrade.brightness !== 1 || c.colorGrade.contrast !== 1 || c.colorGrade.saturation !== 1)) b.push('🎛️');
+            if (c.colorGrade && c.colorGrade.vignette) b.push('🌑');
+            if (c.volume !== 1) b.push('🔊');
+            if (c.trimStart > 0 || c.trimEnd < c.duration) b.push('✂️');
+            const th = c.thumbnail
+              ? '<img class="clip-thumb" src="' + c.thumbnail + '">'
               : '<div class="clip-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5em">🎬</div>';
-            return '<div class="clip-card">' + thumb +
-                   '<div class="clip-info"><div class="clip-name">' + escapeHtml(clip.name) + '</div>' +
-                   '<div class="clip-meta">' + dur + trimNote + ' • ' + size + '</div></div>' +
-                   '<button class="clip-delete" onclick="removeClip(\'' + clip.id + '\')">🗑️</button></div>';
+            return '<div class="clip-card">' + th +
+              '<div class="clip-info"><div class="clip-name">' + esc(c.name) + '</div>' +
+              '<div class="clip-meta">' + fmtDur(c.duration) + ' ' + b.join(' ') + ' • ' + (c.size/(1024*1024)).toFixed(1) + 'MB</div></div>' +
+              '<button class="clip-delete" onclick="removeClip(\'' + c.id + '\')">🗑️</button></div>';
           }
 
-          async function removeClip(clipId) {
-            if (!confirm('حذف هذا المقطع؟')) return;
+          async function removeClip(id) {
+            if (!confirm('حذف المقطع؟')) return;
             try {
-              await VDB.deleteClip(clipId);
-              const project = state.projects.find(p => p.id === state.currentProjectId);
-              if (project && project.clipCount > 0) {
-                project.clipCount -= 1;
-                saveProjects();
-              }
+              await VDB.deleteClip(id);
+              const p = state.projects.find(x => x.id === state.currentProjectId);
+              if (p && p.clipCount > 0) { p.clipCount--; saveProjects(); }
               await loadClipsForProject(state.currentProjectId);
-              if (window.Android) Android.toast('تم حذف المقطع');
-            } catch (e) {
-              if (window.Android) Android.toast('فشل الحذف');
-            }
+              if (window.Android) Android.toast('تم الحذف');
+            } catch (e) {}
           }
 
-          function formatDuration(seconds) {
-            if (!seconds || !isFinite(seconds)) return '—';
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            return m + ':' + String(s).padStart(2, '0');
+          function fmtDur(s) {
+            if (!s || !isFinite(s)) return '—';
+            return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2, '0');
           }
           __VS_EOF__
 
@@ -1378,16 +1243,56 @@ jobs:
           // ============ المحرر ============
           let previewPlaying = false;
           let previewCancel = false;
+          let editingClip = null;
+          let editingFilter = 'none';
+          let editingSpeed = 1;
+          let editingTransition = 'none';
+          let editingOverlayPosition = 'middle';
+          let editingOverlayAnim = 'none';
+          let editingOverlayColor = '#FFFFFF';
+          let editingSticker = '😀';
+          let previewAudio = null;
+
+          const FILTERS = {
+            none: { name: 'أصلي', css: '' },
+            grayscale: { name: 'رمادي', css: 'grayscale(100%)' },
+            sepia: { name: 'سيبيا', css: 'sepia(100%)' },
+            bright: { name: 'ساطع', css: 'brightness(1.3)' },
+            dark: { name: 'داكن', css: 'brightness(0.7)' },
+            contrast: { name: 'تباين', css: 'contrast(1.5)' },
+            saturate: { name: 'مشبع', css: 'saturate(1.8)' },
+            vintage: { name: 'كلاسيكي', css: 'sepia(50%) contrast(1.2) brightness(1.1)' },
+            cool: { name: 'بارد', css: 'hue-rotate(180deg) saturate(1.3)' },
+            warm: { name: 'دافئ', css: 'sepia(30%) saturate(1.4)' },
+            cinematic: { name: 'سينمائي', css: 'contrast(1.2) saturate(1.3) sepia(15%)' },
+            noir: { name: 'نوار', css: 'grayscale(100%) contrast(1.5) brightness(0.9)' },
+            film: { name: 'فيلم', css: 'sepia(25%) contrast(1.1) brightness(0.95)' },
+            neon: { name: 'نيون', css: 'saturate(2.5) contrast(1.4) hue-rotate(15deg)' },
+            retro: { name: 'ريترو', css: 'sepia(40%) saturate(1.6) contrast(1.1)' },
+            dreamy: { name: 'حالم', css: 'brightness(1.15) saturate(1.3) blur(0.5px)' },
+            matrix: { name: 'ماتريكس', css: 'hue-rotate(90deg) saturate(2) contrast(1.5)' },
+            sunset: { name: 'غروب', css: 'sepia(40%) saturate(1.8) hue-rotate(-15deg)' },
+            night: { name: 'ليلي', css: 'brightness(0.6) contrast(1.3) hue-rotate(200deg)' },
+            sketch: { name: 'رسم', css: 'grayscale(100%) contrast(2) brightness(1.1)' }
+          };
+
+          const STICKERS = ['😀','😍','😂','🥰','😎','🤩','🥳','😜','🤔','😴','👍','👏','🙌','💪','✌️','❤️','💖','💯','🔥','⭐','✨','🎉','🎊','🎈','🎁','🌈','☀️','🌙','⚡','💥','🎬','🎥','📸','🎵','🎶','🎤','💎','👑','🌹','🍕'];
 
           function openEditor() {
             if (!state.currentProjectId) return;
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            if (!project) return;
-            document.getElementById('editor-title').innerText = project.name;
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            document.getElementById('editor-title').innerText = p.name;
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-editor').classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.querySelector('.bottom-nav').style.display = 'none';
+            applyCanvasAspect();
+            buildFilterGrid();
+            buildSpeedGrid();
+            buildTransitionGrid();
+            buildStickerGrid();
+            buildOverlaySelectors();
             loadEditorTimeline();
             drawInitialFrame();
             window.scrollTo(0, 0);
@@ -1396,96 +1301,170 @@ jobs:
           function closeEditor() {
             previewCancel = true;
             previewPlaying = false;
+            if (previewAudio) { previewAudio.pause(); previewAudio = null; }
             document.querySelector('.bottom-nav').style.display = 'flex';
             switchScreen('project');
           }
 
-          async function drawInitialFrame() {
-            const canvas = document.getElementById('preview-canvas');
-            const ctx = canvas.getContext('2d');
+          function applyCanvasAspect() {
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            const ar = (p && p.aspectRatio) || '16:9';
+            const [aw, ah] = ar.split(':').map(Number);
+            const w = 640;
+            const h = Math.round(w * ah / aw);
+            const ca = document.getElementById('preview-canvas');
+            ca.width = w;
+            ca.height = h;
+          }
+
+          function drawInitialFrame() {
+            const ca = document.getElementById('preview-canvas');
+            const ctx = ca.getContext('2d');
             ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, ca.width, ca.height);
             ctx.fillStyle = '#666';
             ctx.font = 'bold 28px system-ui, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('معاينة', canvas.width / 2, canvas.height / 2);
+            ctx.fillText('معاينة', ca.width/2, ca.height/2);
+          }
+
+          function buildFilterGrid() {
+            const g = document.getElementById('filter-grid');
+            g.innerHTML = Object.keys(FILTERS).map(k =>
+              '<button data-filter="' + k + '">' + FILTERS[k].name + '</button>').join('');
+            g.querySelectorAll('button').forEach(b => {
+              b.onclick = () => {
+                g.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                editingFilter = b.dataset.filter;
+              };
+            });
+          }
+          function buildSpeedGrid() {
+            const g = document.getElementById('speed-grid');
+            g.querySelectorAll('button').forEach(b => {
+              b.onclick = () => {
+                g.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                editingSpeed = parseFloat(b.dataset.speed);
+              };
+            });
+          }
+          function buildTransitionGrid() {
+            const g = document.getElementById('transition-grid');
+            g.querySelectorAll('button').forEach(b => {
+              b.onclick = () => {
+                g.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                editingTransition = b.dataset.trans;
+              };
+            });
+          }
+          function buildStickerGrid() {
+            const g = document.getElementById('sticker-grid');
+            g.innerHTML = STICKERS.map(s =>
+              '<button data-s="' + s + '">' + s + '</button>').join('');
+            g.querySelectorAll('button').forEach(b => {
+              b.onclick = () => {
+                g.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                editingSticker = b.dataset.s;
+              };
+            });
+          }
+          function buildOverlaySelectors() {
+            const posG = document.getElementById('overlay-position');
+            if (posG && !posG.dataset.wired) {
+              posG.dataset.wired = '1';
+              posG.querySelectorAll('button').forEach(b => {
+                b.onclick = () => {
+                  posG.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                  b.classList.add('active');
+                  editingOverlayPosition = b.dataset.pos;
+                };
+              });
+            }
+            const animG = document.getElementById('overlay-anim');
+            if (animG && !animG.dataset.wired) {
+              animG.dataset.wired = '1';
+              animG.querySelectorAll('button').forEach(b => {
+                b.onclick = () => {
+                  animG.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                  b.classList.add('active');
+                  editingOverlayAnim = b.dataset.anim;
+                };
+              });
+            }
+            const cp = document.getElementById('color-picker');
+            if (cp && !cp.dataset.wired) {
+              cp.dataset.wired = '1';
+              cp.querySelectorAll('button').forEach(b => {
+                b.onclick = () => {
+                  cp.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+                  b.classList.add('active');
+                  editingOverlayColor = b.dataset.color;
+                };
+              });
+            }
           }
 
           async function loadEditorTimeline() {
-            const container = document.getElementById('editor-timeline');
+            const ct = document.getElementById('editor-timeline');
             if (!state.currentProjectId) return;
-            const clips = await VDB.getClipsByProject(state.currentProjectId);
-            if (!clips.length) {
-              container.innerHTML =
-                '<div class="empty-state" style="width:100%">' +
-                '<div class="empty-text">لا توجد مقاطع</div></div>';
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            if (!cs.length) {
+              ct.innerHTML = '<div class="empty-state" style="width:100%"><div class="empty-text">لا مقاطع</div></div>';
               return;
             }
-            container.innerHTML = clips.map((c, i) => timelineClipHTML(c, i, clips.length)).join('');
+            ct.innerHTML = cs.map((c, i) => timelineClipHTML(c, i, cs.length)).join('');
           }
 
-          function timelineClipHTML(clip, index, total) {
-            const dur = formatDuration(clip.duration);
-            const trim = (clip.trimStart > 0 || clip.trimEnd < clip.duration)
-              ? '✂️ ' + formatDuration(clip.trimEnd - clip.trimStart) : dur;
-            const thumb = clip.thumbnail
-              ? '<img class="timeline-thumb" src="' + clip.thumbnail + '" alt="">'
+          function timelineClipHTML(c, i, t) {
+            const sp = c.speed || 1;
+            const dur = Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
+            const badges = [];
+            if (c.filter && c.filter !== 'none') badges.push(FILTERS[c.filter]?.name || c.filter);
+            if (sp !== 1) badges.push(sp + 'x');
+            if (c.transition && c.transition !== 'none') badges.push('🌅');
+            if (c.colorGrade && (c.colorGrade.brightness !== 1 || c.colorGrade.contrast !== 1 || c.colorGrade.saturation !== 1 || c.colorGrade.vignette)) badges.push('🎛️');
+            if (c.volume !== 1) badges.push('🔊');
+            const th = c.thumbnail
+              ? '<img class="timeline-thumb" src="' + c.thumbnail + '">'
               : '<div class="timeline-thumb" style="display:flex;align-items:center;justify-content:center;font-size:2em">🎬</div>';
-            return '<div class="timeline-clip" data-id="' + clip.id + '">' +
-                   thumb +
-                   '<div class="timeline-info"><span>' + (index + 1) + '</span><span>' + trim + '</span></div>' +
-                   '<div class="timeline-controls">' +
-                   '<button onclick="event.stopPropagation();openTrimModal(\'' + clip.id + '\')">✏️</button>' +
-                   (index > 0 ? '<button onclick="event.stopPropagation();moveClip(\'' + clip.id + '\',-1)">◀</button>' : '<button style="opacity:0.3">◀</button>') +
-                   (index < total - 1 ? '<button onclick="event.stopPropagation();moveClip(\'' + clip.id + '\',1)">▶</button>' : '<button style="opacity:0.3">▶</button>') +
-                   '</div></div>';
-          }
-
-          async function moveClip(clipId, direction) {
-            const clips = await VDB.getClipsByProject(state.currentProjectId);
-            const idx = clips.findIndex(c => c.id === clipId);
-            if (idx < 0) return;
-            const newIdx = idx + direction;
-            if (newIdx < 0 || newIdx >= clips.length) return;
-            const temp = clips[idx];
-            clips[idx] = clips[newIdx];
-            clips[newIdx] = temp;
-            for (let i = 0; i < clips.length; i++) {
-              clips[i].order = i;
-              await VDB.updateClip(clips[i]);
-            }
-            await loadEditorTimeline();
-            if (window.Android) Android.vibrate(20);
+            return '<div class="timeline-clip">' + th +
+              '<div class="timeline-info"><span>#' + (i+1) + '</span><span>' + fmtDur(dur) + '</span></div>' +
+              (badges.length ? '<div class="timeline-badges">' + badges.map(x => '· ' + x).join(' ') + '</div>' : '') +
+              '<div class="timeline-controls">' +
+              '<button onclick="event.stopPropagation();openTrimModal(\'' + c.id + '\')" title="قص">✂️</button>' +
+              '<button onclick="event.stopPropagation();openFilterModal(\'' + c.id + '\')" title="فلتر">🎨</button>' +
+              '<button onclick="event.stopPropagation();openSpeedModal(\'' + c.id + '\')" title="سرعة">⚡</button>' +
+              '<button onclick="event.stopPropagation();openTransitionModal(\'' + c.id + '\')" title="انتقال">🌅</button>' +
+              '<button onclick="event.stopPropagation();openGradeModal(\'' + c.id + '\')" title="تدريج">🎛️</button>' +
+              '<button onclick="event.stopPropagation();openVolumeModal(\'' + c.id + '\')" title="صوت">🔊</button>' +
+              '</div></div>';
           }
 
           // ============ القص ============
-          let editingClip = null;
-          async function openTrimModal(clipId) {
-            const clips = await VDB.getClipsByProject(state.currentProjectId);
-            const clip = clips.find(c => c.id === clipId);
-            if (!clip) return;
-            editingClip = clip;
-            state.editingClipId = clipId;
-            const startEl = document.getElementById('trim-start');
-            const endEl = document.getElementById('trim-end');
-            startEl.max = clip.duration;
-            endEl.max = clip.duration;
-            startEl.value = clip.trimStart || 0;
-            endEl.value = clip.trimEnd || clip.duration;
+          async function openTrimModal(id) {
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            const c = cs.find(x => x.id === id);
+            if (!c) return;
+            editingClip = c;
+            const s = document.getElementById('trim-start');
+            const e = document.getElementById('trim-end');
+            s.max = c.duration; e.max = c.duration;
+            s.value = c.trimStart || 0; e.value = c.trimEnd || c.duration;
             updateTrimLabels();
             document.getElementById('trim-modal').classList.remove('hidden');
-            if (window.Android) Android.vibrate(20);
           }
-
           function updateTrimLabels() {
             const s = parseFloat(document.getElementById('trim-start').value) || 0;
             const e = parseFloat(document.getElementById('trim-end').value) || 0;
             document.getElementById('trim-start-val').innerText = s.toFixed(1) + 's';
             document.getElementById('trim-end-val').innerText = e.toFixed(1) + 's';
           }
-
-          document.addEventListener('input', (e) => {
+          document.addEventListener('input', e => {
             if (e.target.id === 'trim-start' || e.target.id === 'trim-end') {
               const s = parseFloat(document.getElementById('trim-start').value);
               const en = parseFloat(document.getElementById('trim-end').value);
@@ -1496,169 +1475,279 @@ jobs:
               updateTrimLabels();
             }
           });
-
-          function cancelTrim() {
-            editingClip = null;
-            document.getElementById('trim-modal').classList.add('hidden');
-          }
-
+          function cancelTrim() { editingClip = null; document.getElementById('trim-modal').classList.add('hidden'); }
           async function saveTrim() {
             if (!editingClip) return;
-            const s = parseFloat(document.getElementById('trim-start').value);
-            const e = parseFloat(document.getElementById('trim-end').value);
-            editingClip.trimStart = s;
-            editingClip.trimEnd = e;
+            editingClip.trimStart = parseFloat(document.getElementById('trim-start').value);
+            editingClip.trimEnd = parseFloat(document.getElementById('trim-end').value);
             await VDB.updateClip(editingClip);
             editingClip = null;
             document.getElementById('trim-modal').classList.add('hidden');
             await loadEditorTimeline();
-            if (window.Android) { Android.toast('تم حفظ القص'); Android.vibrate(30); }
+            if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ النصوص ============
+          // ============ فلتر ============
+          async function openFilterModal(id) {
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            const c = cs.find(x => x.id === id);
+            if (!c) return;
+            editingClip = c;
+            editingFilter = c.filter || 'none';
+            document.getElementById('filter-grid').querySelectorAll('button').forEach(b => {
+              b.classList.toggle('active', b.dataset.filter === editingFilter);
+            });
+            document.getElementById('filter-modal').classList.remove('hidden');
+          }
+          function cancelFilter() { editingClip = null; document.getElementById('filter-modal').classList.add('hidden'); }
+          async function saveFilter() {
+            if (!editingClip) return;
+            editingClip.filter = editingFilter;
+            await VDB.updateClip(editingClip);
+            editingClip = null;
+            document.getElementById('filter-modal').classList.add('hidden');
+            await loadEditorTimeline();
+            if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
+          }
+
+          // ============ سرعة ============
+          async function openSpeedModal(id) {
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            const c = cs.find(x => x.id === id);
+            if (!c) return;
+            editingClip = c;
+            editingSpeed = c.speed || 1;
+            document.getElementById('speed-grid').querySelectorAll('button').forEach(b => {
+              b.classList.toggle('active', parseFloat(b.dataset.speed) === editingSpeed);
+            });
+            document.getElementById('speed-modal').classList.remove('hidden');
+          }
+          function cancelSpeed() { editingClip = null; document.getElementById('speed-modal').classList.add('hidden'); }
+          async function saveSpeed() {
+            if (!editingClip) return;
+            editingClip.speed = editingSpeed;
+            await VDB.updateClip(editingClip);
+            editingClip = null;
+            document.getElementById('speed-modal').classList.add('hidden');
+            await loadEditorTimeline();
+            if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
+          }
+
+          // ============ انتقال ============
+          async function openTransitionModal(id) {
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            const c = cs.find(x => x.id === id);
+            if (!c) return;
+            editingClip = c;
+            editingTransition = c.transition || 'none';
+            document.getElementById('transition-grid').querySelectorAll('button').forEach(b => {
+              b.classList.toggle('active', b.dataset.trans === editingTransition);
+            });
+            document.getElementById('transition-modal').classList.remove('hidden');
+          }
+          function cancelTransition() { editingClip = null; document.getElementById('transition-modal').classList.add('hidden'); }
+          async function saveTransition() {
+            if (!editingClip) return;
+            editingClip.transition = editingTransition;
+            await VDB.updateClip(editingClip);
+            editingClip = null;
+            document.getElementById('transition-modal').classList.add('hidden');
+            await loadEditorTimeline();
+            if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
+          }
+
+          // ============ تدريج لوني ============
+          async function openGradeModal(id) {
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            const c = cs.find(x => x.id === id);
+            if (!c) return;
+            editingClip = c;
+            const cg = c.colorGrade || { brightness: 1, contrast: 1, saturation: 1, vignette: false };
+            document.getElementById('grade-brightness').value = cg.brightness;
+            document.getElementById('grade-contrast').value = cg.contrast;
+            document.getElementById('grade-saturation').value = cg.saturation;
+            document.getElementById('grade-vignette').checked = !!cg.vignette;
+            updateGradeLabels();
+            document.getElementById('grade-modal').classList.remove('hidden');
+          }
+          function updateGradeLabels() {
+            document.getElementById('grade-bright-val').innerText = Math.round(parseFloat(document.getElementById('grade-brightness').value) * 100) + '%';
+            document.getElementById('grade-contrast-val').innerText = Math.round(parseFloat(document.getElementById('grade-contrast').value) * 100) + '%';
+            document.getElementById('grade-sat-val').innerText = Math.round(parseFloat(document.getElementById('grade-saturation').value) * 100) + '%';
+          }
+          ['grade-brightness','grade-contrast','grade-saturation'].forEach(id => {
+            document.addEventListener('input', e => { if (e.target.id === id) updateGradeLabels(); });
+          });
+          function cancelGrade() { editingClip = null; document.getElementById('grade-modal').classList.add('hidden'); }
+          async function saveGrade() {
+            if (!editingClip) return;
+            editingClip.colorGrade = {
+              brightness: parseFloat(document.getElementById('grade-brightness').value),
+              contrast: parseFloat(document.getElementById('grade-contrast').value),
+              saturation: parseFloat(document.getElementById('grade-saturation').value),
+              vignette: document.getElementById('grade-vignette').checked
+            };
+            await VDB.updateClip(editingClip);
+            editingClip = null;
+            document.getElementById('grade-modal').classList.add('hidden');
+            await loadEditorTimeline();
+            if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
+          }
+
+          // ============ صوت ============
+          async function openVolumeModal(id) {
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            const c = cs.find(x => x.id === id);
+            if (!c) return;
+            editingClip = c;
+            const v = Math.round((c.volume !== undefined ? c.volume : 1) * 100);
+            document.getElementById('volume-slider').value = v;
+            document.getElementById('volume-val').innerText = v + '%';
+            document.getElementById('volume-modal').classList.remove('hidden');
+          }
+          document.addEventListener('input', e => {
+            if (e.target.id === 'volume-slider')
+              document.getElementById('volume-val').innerText = e.target.value + '%';
+          });
+          function cancelVolume() { editingClip = null; document.getElementById('volume-modal').classList.add('hidden'); }
+          async function saveVolume() {
+            if (!editingClip) return;
+            editingClip.volume = parseInt(document.getElementById('volume-slider').value) / 100;
+            await VDB.updateClip(editingClip);
+            editingClip = null;
+            document.getElementById('volume-modal').classList.add('hidden');
+            await loadEditorTimeline();
+            if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
+          }
+
+          // ============ نص ============
           function openOverlayModal() {
             document.getElementById('overlay-text').value = '';
-            state.overlayColor = '#FFFFFF';
-            const cp = document.getElementById('color-picker');
-            cp.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === 0));
+            document.getElementById('overlay-outline').checked = false;
+            editingOverlayPosition = 'middle';
+            editingOverlayAnim = 'none';
+            editingOverlayColor = '#FFFFFF';
+            document.getElementById('overlay-position').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 1));
+            document.getElementById('overlay-anim').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
+            document.getElementById('color-picker').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
             document.getElementById('overlay-modal').classList.remove('hidden');
           }
-
-          function cancelOverlay() {
-            document.getElementById('overlay-modal').classList.add('hidden');
-          }
-
+          function cancelOverlay() { document.getElementById('overlay-modal').classList.add('hidden'); }
           function saveOverlay() {
-            const text = document.getElementById('overlay-text').value.trim();
-            if (!text) { if (window.Android) Android.toast('اكتب النص أولاً'); return; }
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            if (!project) return;
-            if (!project.overlays) project.overlays = [];
-            project.overlays.push({
-              id: 'o_' + Date.now(),
-              text: text,
-              color: state.overlayColor,
-              size: 48,
-              x: null, y: null,
-              startTime: 0,
-              endTime: 99999
+            const t = document.getElementById('overlay-text').value.trim();
+            if (!t) { if (window.Android) Android.toast('اكتب نصاً'); return; }
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            if (!p.overlays) p.overlays = [];
+            p.overlays.push({
+              id: 'o_' + Date.now(), kind: 'text',
+              text: t, color: editingOverlayColor, size: 48,
+              position: editingOverlayPosition,
+              animation: editingOverlayAnim,
+              outline: document.getElementById('overlay-outline').checked,
+              startTime: 0, endTime: 99999
             });
             saveProjects();
             document.getElementById('overlay-modal').classList.add('hidden');
-            if (window.Android) { Android.toast('تمت إضافة النص'); Android.vibrate(30); }
+            if (window.Android) { Android.toast('تمت الإضافة'); Android.vibrate(30); }
           }
 
+          // ============ ملصق ============
+          function openStickerModal() {
+            document.getElementById('sticker-animate').checked = false;
+            editingSticker = '😀';
+            document.getElementById('sticker-grid').querySelectorAll('button').forEach((b,i) => b.classList.toggle('active', i === 0));
+            document.getElementById('sticker-modal').classList.remove('hidden');
+          }
+          function cancelSticker() { document.getElementById('sticker-modal').classList.add('hidden'); }
+          function saveSticker() {
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            if (!p.overlays) p.overlays = [];
+            p.overlays.push({
+              id: 'o_' + Date.now(), kind: 'sticker',
+              text: editingSticker, size: 120,
+              position: 'middle',
+              animation: document.getElementById('sticker-animate').checked ? 'pulse' : 'none',
+              startTime: 0, endTime: 99999
+            });
+            saveProjects();
+            document.getElementById('sticker-modal').classList.add('hidden');
+            if (window.Android) { Android.toast('تمت الإضافة'); Android.vibrate(30); }
+          }
+
+          // ============ موسيقى ============
+          async function openMusicModal() {
+            await renderMusicStatus();
+            document.getElementById('music-modal').classList.remove('hidden');
+          }
+          async function renderMusicStatus() {
+            const el = document.getElementById('current-music');
+            try {
+              const m = await VDB.getMusic(state.currentProjectId);
+              el.innerHTML = m
+                ? '<div class="overlay-item"><div class="overlay-text-preview">🎵 ' + esc(m.name) + '</div></div>'
+                : '<p class="hint-text">لا موسيقى حالياً</p>';
+            } catch (e) { el.innerHTML = '<p class="hint-text">لا موسيقى</p>'; }
+          }
+          function cancelMusic() { document.getElementById('music-modal').classList.add('hidden'); }
+          function pickMusic() {
+            const i = document.createElement('input');
+            i.type = 'file'; i.accept = 'audio/*';
+            i.onchange = async (e) => {
+              const f = e.target.files[0];
+              if (!f) return;
+              try {
+                await VDB.setMusic({ projectId: state.currentProjectId, name: f.name, blob: f });
+                const p = state.projects.find(x => x.id === state.currentProjectId);
+                if (p) { p.hasMusic = true; saveProjects(); }
+                await renderMusicStatus();
+                if (window.Android) Android.toast('تمت إضافة الموسيقى');
+              } catch (err) {
+                if (window.Android) Android.toast('فشل');
+              }
+            };
+            i.click();
+          }
+          async function clearMusic() {
+            try {
+              await VDB.deleteMusic(state.currentProjectId);
+              const p = state.projects.find(x => x.id === state.currentProjectId);
+              if (p) { p.hasMusic = false; saveProjects(); }
+              await renderMusicStatus();
+              if (window.Android) Android.toast('تم الحذف');
+            } catch (e) {}
+          }
+
+          // ============ قائمة العناصر ============
           function showOverlaysList() {
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            const overlays = (project && project.overlays) || [];
-            const content = document.getElementById('overlays-list-content');
-            if (!overlays.length) {
-              content.innerHTML = '<div class="empty-state" style="padding:20px">' +
-                '<div class="empty-text">لا نصوص</div></div>';
-            } else {
-              content.innerHTML = overlays.map(o =>
-                '<div class="overlay-item">' +
-                '<div class="overlay-text-preview" style="color:' + o.color + '">' +
-                escapeHtml(o.text) + '</div>' +
-                '<button class="overlay-del" onclick="deleteOverlay(\'' + o.id + '\')">🗑️</button></div>'
-              ).join('');
-            }
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            const ov = (p && p.overlays) || [];
+            const ct = document.getElementById('overlays-list-content');
+            if (!ov.length) ct.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-text">لا عناصر</div></div>';
+            else ct.innerHTML = ov.map(o =>
+              '<div class="overlay-item"><div class="overlay-text-preview" style="color:' + (o.color||'#fff') + '">' +
+              (o.kind === 'sticker' ? '😀 ' : '📝 ') + esc(o.text) + '</div>' +
+              '<button class="overlay-del" onclick="deleteOverlay(\'' + o.id + '\')">🗑️</button></div>').join('');
             document.getElementById('overlays-list-modal').classList.remove('hidden');
           }
-
-          function hideOverlaysList() {
-            document.getElementById('overlays-list-modal').classList.add('hidden');
-          }
-
+          function hideOverlaysList() { document.getElementById('overlays-list-modal').classList.add('hidden'); }
           function deleteOverlay(id) {
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            if (!project) return;
-            project.overlays = (project.overlays || []).filter(o => o.id !== id);
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            if (!p) return;
+            p.overlays = (p.overlays || []).filter(o => o.id !== id);
             saveProjects();
             showOverlaysList();
-            if (window.Android) Android.vibrate(20);
           }
 
-          // ============ المعاينة ============
-          async function previewProject() {
-            if (previewPlaying) {
-              previewCancel = true;
-              previewPlaying = false;
-              document.getElementById('preview-play').innerText = '▶️';
-              return;
-            }
-            previewPlaying = true;
-            previewCancel = false;
-            document.getElementById('preview-play').innerText = '⏸';
-
-            const canvas = document.getElementById('preview-canvas');
-            const ctx = canvas.getContext('2d');
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            const overlays = (project && project.overlays) || [];
-            const clips = await VDB.getClipsByProject(state.currentProjectId);
-            if (!clips.length) { previewPlaying = false; return; }
-
-            let totalDur = 0;
-            for (const c of clips) {
-              totalDur += Math.max(0.1, (c.trimEnd || c.duration) - (c.trimStart || 0));
-            }
-            let accumulated = 0;
-
-            for (const clip of clips) {
-              if (previewCancel) break;
-              await previewClipPlayback(clip, ctx, canvas, overlays, accumulated, totalDur, (p) => {
-                document.getElementById('preview-progress-bar').style.width = p + '%';
-              });
-              accumulated += Math.max(0.1, (clip.trimEnd || clip.duration) - (clip.trimStart || 0));
-            }
-
-            previewPlaying = false;
-            document.getElementById('preview-play').innerText = '▶️';
-            document.getElementById('preview-progress-bar').style.width = '0%';
-          }
-
-          function previewClipPlayback(clip, ctx, canvas, overlays, baseProgress, totalDur, onProgress) {
-            return new Promise((resolve) => {
-              const url = URL.createObjectURL(clip.blob);
-              const video = document.createElement('video');
-              video.src = url;
-              video.muted = false;
-              video.playsInline = true;
-              video.crossOrigin = 'anonymous';
-
-              const trimStart = clip.trimStart || 0;
-              const trimEnd = clip.trimEnd || clip.duration;
-              const dur = Math.max(0.1, trimEnd - trimStart);
-              let startWall = null;
-
-              video.onloadedmetadata = () => { video.currentTime = trimStart; };
-              video.onseeked = () => {
-                startWall = performance.now();
-                video.play().catch(() => {});
-                requestAnimationFrame(drawFrame);
-              };
-
-              function drawFrame() {
-                if (previewCancel) {
-                  video.pause(); URL.revokeObjectURL(url); resolve(); return;
-                }
-                const elapsed = (performance.now() - startWall) / 1000;
-                drawVideoFit(ctx, video, canvas.width, canvas.height);
-                if (overlays.length) {
-                  drawOverlaysOnCanvas(ctx, overlays, elapsed, canvas.width, canvas.height);
-                }
-                const clipProgress = Math.min(1, elapsed / dur);
-                const overall = ((baseProgress + elapsed) / totalDur) * 100;
-                onProgress(Math.min(100, overall));
-
-                if (elapsed >= dur || video.ended) {
-                  video.pause(); URL.revokeObjectURL(url); resolve(); return;
-                }
-                requestAnimationFrame(drawFrame);
-              }
-
-              video.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-            });
+          // ============ رسم ============
+          function getFilterCss(clip) {
+            const f = FILTERS[clip.filter || 'none'];
+            const cg = clip.colorGrade || { brightness: 1, contrast: 1, saturation: 1 };
+            return (f ? f.css + ' ' : '') +
+              'brightness(' + cg.brightness + ') ' +
+              'contrast(' + cg.contrast + ') ' +
+              'saturate(' + cg.saturation + ')';
           }
 
           function drawVideoFit(ctx, video, w, h) {
@@ -1672,192 +1761,369 @@ jobs:
             try { ctx.drawImage(video, dx, dy, dw, dh); } catch (e) {}
           }
 
+          function drawVignette(ctx, w, h) {
+            const g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.2, w/2, h/2, Math.max(w,h)*0.7);
+            g.addColorStop(0, 'rgba(0,0,0,0)');
+            g.addColorStop(1, 'rgba(0,0,0,0.65)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, w, h);
+          }
+
+          function drawTransition(ctx, clip, elapsed, dur, w, h) {
+            const tr = clip.transition;
+            if (!tr || tr === 'none') return;
+            const fadeDur = Math.min(0.6, dur/4);
+            const inP = Math.min(1, elapsed / fadeDur);
+            const outP = Math.min(1, (dur - elapsed) / fadeDur);
+            if (tr === 'fade') {
+              const a = Math.min(inP, outP);
+              ctx.fillStyle = 'rgba(0,0,0,' + (1-a) + ')';
+              ctx.fillRect(0, 0, w, h);
+            } else if (tr === 'flash') {
+              const a = Math.max(0, 1 - Math.min(inP*2, 1)) + Math.max(0, 1 - Math.min(outP*2, 1));
+              const al = Math.min(1, a);
+              if (al > 0.01) {
+                ctx.fillStyle = 'rgba(255,255,255,' + al + ')';
+                ctx.fillRect(0, 0, w, h);
+              }
+            } else if (tr === 'slide') {
+              const inOff = (1 - inP) * w;
+              const outOff = (1 - outP) * w;
+              if (inP < 1) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(w - inOff, 0, inOff, h);
+              }
+              if (outP < 1) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, outOff, h);
+              }
+            } else if (tr === 'zoom') {
+              const a = Math.min(inP, outP);
+              ctx.fillStyle = 'rgba(0,0,0,' + (1-a) + ')';
+              ctx.fillRect(0, 0, w, h);
+            } else if (tr === 'blur') {
+              const a = Math.min(inP, outP);
+              ctx.fillStyle = 'rgba(0,0,0,' + (1-a) * 0.6 + ')';
+              ctx.fillRect(0, 0, w, h);
+            }
+          }
+
           function drawOverlaysOnCanvas(ctx, overlays, time, w, h) {
             for (const ov of overlays) {
               if (time < ov.startTime || time > ov.endTime) continue;
+              let alpha = 1, offsetY = 0, text = ov.text;
+              if (ov.animation === 'fade') alpha = Math.min(1, time / 0.6);
+              else if (ov.animation === 'typewriter') text = ov.text.substring(0, Math.floor(time * 15));
+              else if (ov.animation === 'bounce') offsetY = Math.sin(time * 8) * 8;
+              else if (ov.animation === 'pulse') {
+                const sc = 1 + Math.sin(time * 6) * 0.1;
+                const cx = w/2, cy = h/2;
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.scale(sc, sc);
+                ctx.globalAlpha = alpha;
+                ctx.font = 'bold ' + ov.size + 'px system-ui';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+                continue;
+              }
+
+              let x = w/2, y = h/2;
+              if (ov.position === 'top') y = h * 0.15;
+              else if (ov.position === 'bottom') y = h * 0.85;
+              y += offsetY;
+
               ctx.save();
-              ctx.fillStyle = ov.color || '#fff';
+              ctx.globalAlpha = alpha;
               ctx.font = 'bold ' + (ov.size || 48) + 'px system-ui, -apple-system, sans-serif';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
+
+              if (ov.outline) {
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = Math.max(2, (ov.size || 48) * 0.08);
+                ctx.strokeText(text, x, y);
+              }
               ctx.shadowColor = 'rgba(0,0,0,0.8)';
               ctx.shadowBlur = 10;
-              ctx.shadowOffsetX = 0;
               ctx.shadowOffsetY = 2;
-              const x = ov.x != null ? ov.x : w / 2;
-              const y = ov.y != null ? ov.y : h / 2;
-              ctx.fillText(ov.text || '', x, y);
+              ctx.fillStyle = ov.color || '#fff';
+              ctx.fillText(text, x, y);
               ctx.restore();
             }
           }
 
-          // ============ التصدير ============
-          async function exportProject() {
-            if (!state.currentProjectId) return;
-            if (!window.MediaRecorder) {
-              if (window.Android) Android.toast('المتصفح لا يدعم التصدير');
+          // ============ معاينة ============
+          async function previewProject() {
+            if (previewPlaying) {
+              previewCancel = true;
+              previewPlaying = false;
+              document.getElementById('preview-play').innerText = '▶️';
+              if (previewAudio) { previewAudio.pause(); previewAudio = null; }
               return;
             }
-            const clips = await VDB.getClipsByProject(state.currentProjectId);
-            if (!clips.length) { if (window.Android) Android.toast('لا توجد مقاطع'); return; }
-            const project = state.projects.find(p => p.id === state.currentProjectId);
-            const overlays = (project && project.overlays) || [];
+            previewPlaying = true;
+            previewCancel = false;
+            document.getElementById('preview-play').innerText = '⏸';
+            const ca = document.getElementById('preview-canvas');
+            const ctx = ca.getContext('2d');
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            const ov = (p && p.overlays) || [];
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            if (!cs.length) { previewPlaying = false; return; }
+
+            // Music
+            try {
+              const m = await VDB.getMusic(state.currentProjectId);
+              if (m) {
+                previewAudio = new Audio(URL.createObjectURL(m.blob));
+                previewAudio.loop = true;
+                previewAudio.volume = 0.7;
+                previewAudio.play().catch(() => {});
+              }
+            } catch (e) {}
 
             let totalDur = 0;
-            for (const c of clips) {
-              totalDur += Math.max(0.1, (c.trimEnd || c.duration) - (c.trimStart || 0));
+            for (const c of cs) {
+              const sp = c.speed || 1;
+              totalDur += Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
             }
-            showLoading('جارٍ التصدير... 0%', 0);
+            let acc = 0;
+            for (const c of cs) {
+              if (previewCancel) break;
+              await previewClipPlayback(c, ctx, ca, ov, acc, totalDur, pct => {
+                document.getElementById('preview-progress-bar').style.width = pct + '%';
+              });
+              const sp = c.speed || 1;
+              acc += Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
+            }
+            previewPlaying = false;
+            document.getElementById('preview-play').innerText = '▶️';
+            document.getElementById('preview-progress-bar').style.width = '0%';
+            if (previewAudio) { previewAudio.pause(); previewAudio = null; }
+          }
+
+          function previewClipPlayback(clip, ctx, ca, overlays, baseP, totalDur, onP) {
+            return new Promise(resolve => {
+              const u = URL.createObjectURL(clip.blob);
+              const v = document.createElement('video');
+              v.src = u;
+              v.muted = false;
+              v.playsInline = true;
+              v.crossOrigin = 'anonymous';
+              v.playbackRate = clip.speed || 1;
+              v.volume = clip.volume !== undefined ? clip.volume : 1;
+
+              const ts = clip.trimStart || 0;
+              const te = clip.trimEnd || clip.duration;
+              const sp = clip.speed || 1;
+              const dur = Math.max(0.1, (te - ts) / sp);
+              let startWall = null;
+
+              v.onloadedmetadata = () => { v.currentTime = ts; };
+              v.onseeked = () => {
+                startWall = performance.now();
+                v.play().catch(() => {});
+                requestAnimationFrame(draw);
+              };
+
+              function draw() {
+                if (previewCancel) { v.pause(); URL.revokeObjectURL(u); resolve(); return; }
+                const el = (performance.now() - startWall) / 1000;
+                ctx.save();
+                ctx.filter = getFilterCss(clip);
+                drawVideoFit(ctx, v, ca.width, ca.height);
+                ctx.filter = 'none';
+                if (clip.colorGrade && clip.colorGrade.vignette) drawVignette(ctx, ca.width, ca.height);
+                drawTransition(ctx, clip, el, dur, ca.width, ca.height);
+                ctx.restore();
+                if (overlays.length) drawOverlaysOnCanvas(ctx, overlays, el, ca.width, ca.height);
+                const pct = ((baseP + el) / totalDur) * 100;
+                onP(Math.min(100, pct));
+                if (el >= dur || v.ended) { v.pause(); URL.revokeObjectURL(u); resolve(); return; }
+                requestAnimationFrame(draw);
+              }
+
+              v.onerror = () => { URL.revokeObjectURL(u); resolve(); };
+            });
+          }
+
+          // ============ تصدير ============
+          async function exportProject() {
+            if (!state.currentProjectId) return;
+            if (!window.MediaRecorder) { if (window.Android) Android.toast('غير مدعوم'); return; }
+            const cs = await VDB.getClipsByProject(state.currentProjectId);
+            if (!cs.length) { if (window.Android) Android.toast('لا مقاطع'); return; }
+            const p = state.projects.find(x => x.id === state.currentProjectId);
+            const ov = (p && p.overlays) || [];
+            let totalDur = 0;
+            for (const c of cs) {
+              const sp = c.speed || 1;
+              totalDur += Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
+            }
+            showLoading('التصدير... 0%', 0);
 
             try {
-              // تحديد الدقة من أول فيديو
-              const firstVideoMeta = await loadVideoMeta(clips[0]);
-              const width = Math.min(firstVideoMeta.width || 1280, 1280);
-              const height = Math.round((firstVideoMeta.height / firstVideoMeta.width) * width) || 720;
+              const meta = await loadVideoMeta(cs[0]);
+              const ar = (p && p.aspectRatio) || '16:9';
+              const [aw, ah] = ar.split(':').map(Number);
+              const width = Math.min(meta.width || 1280, 1280);
+              const height = Math.round(width * ah / aw);
 
-              const canvas = document.createElement('canvas');
-              canvas.width = width; canvas.height = height;
-              const ctx = canvas.getContext('2d');
+              const ca = document.createElement('canvas');
+              ca.width = width; ca.height = height;
+              const ctx = ca.getContext('2d');
               ctx.fillStyle = '#000';
               ctx.fillRect(0, 0, width, height);
 
-              const videoStream = canvas.captureStream(30);
+              const vStream = ca.captureStream(30);
 
-              // Audio
-              let audioCtx = null, audioDest = null;
+              let ac = null, ad = null;
               try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioDest = audioCtx.createMediaStreamDestination();
-              } catch (e) { console.warn('AudioContext', e); }
+                ac = new (window.AudioContext || window.webkitAudioContext)();
+                ad = ac.createMediaStreamDestination();
+                window._vsAC = ac; window._vsAD = ad;
+              } catch (e) {}
 
-              let finalStream = videoStream;
-              if (audioDest) {
-                finalStream = new MediaStream([
-                  ...videoStream.getVideoTracks(),
-                  ...audioDest.stream.getAudioTracks()
-                ]);
+              // Background music -> audio stream
+              let bgAudio = null;
+              try {
+                const m = await VDB.getMusic(state.currentProjectId);
+                if (m && ac && ad) {
+                  bgAudio = new Audio(URL.createObjectURL(m.blob));
+                  bgAudio.loop = true;
+                  bgAudio.volume = 0.7;
+                  const src = ac.createMediaElementSource(bgAudio);
+                  src.connect(ad);
+                  src.connect(ac.destination);
+                }
+              } catch (e) {}
+
+              let finalStream = vStream;
+              if (ad) {
+                finalStream = new MediaStream([...vStream.getVideoTracks(), ...ad.stream.getAudioTracks()]);
               }
 
-              let mimeType = 'video/webm;codecs=vp8,opus';
-              if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-              if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
+              let mt = 'video/webm;codecs=vp8,opus';
+              if (!MediaRecorder.isTypeSupported(mt)) mt = 'video/webm';
+              if (!MediaRecorder.isTypeSupported(mt)) mt = '';
 
-              const recorder = new MediaRecorder(finalStream, mimeType
-                ? { mimeType, videoBitsPerSecond: 4_000_000 }
+              const rec = new MediaRecorder(finalStream, mt
+                ? { mimeType: mt, videoBitsPerSecond: 4_000_000 }
                 : { videoBitsPerSecond: 4_000_000 });
 
               const chunks = [];
-              recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-              const donePromise = new Promise((resolve) => {
-                recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
-              });
+              rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+              const done = new Promise(r => { rec.onstop = () => r(new Blob(chunks, { type: 'video/webm' })); });
 
-              recorder.start(200);
+              if (bgAudio) bgAudio.play().catch(() => {});
+              rec.start(200);
 
-              let accumulated = 0;
-              for (const clip of clips) {
-                await exportClipPlayback(clip, ctx, canvas, overlays, accumulated, totalDur, (pct) => {
-                  showLoading('جارٍ التصدير... ' + pct + '%', pct);
+              let acc = 0;
+              for (const c of cs) {
+                await exportClipPlayback(c, ctx, ca, ov, acc, totalDur, pct => {
+                  showLoading('التصدير... ' + pct + '%', pct);
                 });
-                accumulated += Math.max(0.1, (clip.trimEnd || clip.duration) - (clip.trimStart || 0));
+                const sp = c.speed || 1;
+                acc += Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
               }
 
+              if (bgAudio) bgAudio.pause();
               await new Promise(r => setTimeout(r, 400));
-              recorder.stop();
-              const blob = await donePromise;
-              if (audioCtx) audioCtx.close().catch(() => {});
+              rec.stop();
+              const blob = await done;
+              if (ac) ac.close().catch(() => {});
+              window._vsAC = null; window._vsAD = null;
 
-              const base64 = await blobToBase64(blob);
+              const b64 = await blobToBase64(blob);
               hideLoading();
 
               if (window.Android && Android.saveVideo) {
-                Android.saveVideo(base64, 'VideoStudio_' + Date.now() + '.webm', 'video/webm');
+                Android.saveVideo(b64, 'VideoStudio_' + Date.now() + '.webm', 'video/webm');
               } else {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = 'VideoStudio_' + Date.now() + '.webm';
+                a.href = url; a.download = 'VideoStudio_' + Date.now() + '.webm';
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
               }
             } catch (err) {
               hideLoading();
               console.error(err);
-              if (window.Android) Android.toast('فشل التصدير: ' + err.message);
+              if (window.Android) Android.toast('فشل: ' + err.message);
             }
           }
 
           function loadVideoMeta(clip) {
-            return new Promise((resolve) => {
-              const url = URL.createObjectURL(clip.blob);
+            return new Promise(r => {
+              const u = URL.createObjectURL(clip.blob);
               const v = document.createElement('video');
               v.preload = 'metadata';
-              v.onloadedmetadata = () => {
-                URL.revokeObjectURL(url);
-                resolve({ width: v.videoWidth || 1280, height: v.videoHeight || 720 });
-              };
-              v.onerror = () => { URL.revokeObjectURL(url); resolve({ width: 1280, height: 720 }); };
-              v.src = url;
+              v.onloadedmetadata = () => { URL.revokeObjectURL(u); r({ width: v.videoWidth||1280, height: v.videoHeight||720 }); };
+              v.onerror = () => { URL.revokeObjectURL(u); r({ width: 1280, height: 720 }); };
+              v.src = u;
             });
           }
 
-          function exportClipPlayback(clip, ctx, canvas, overlays, baseProgress, totalDur, onProgress) {
-            return new Promise((resolve) => {
-              const url = URL.createObjectURL(clip.blob);
-              const video = document.createElement('video');
-              video.src = url;
-              video.muted = false;
-              video.playsInline = true;
-              video.crossOrigin = 'anonymous';
+          function exportClipPlayback(clip, ctx, ca, overlays, baseP, totalDur, onP) {
+            return new Promise(resolve => {
+              const u = URL.createObjectURL(clip.blob);
+              const v = document.createElement('video');
+              v.src = u;
+              v.muted = false;
+              v.playsInline = true;
+              v.crossOrigin = 'anonymous';
+              v.playbackRate = clip.speed || 1;
+              v.volume = clip.volume !== undefined ? clip.volume : 1;
 
-              // محاولة توصيل الصوت إلى MediaStreamDestination
-              if (window._vsAudioDest) {
+              if (window._vsAD) {
                 try {
-                  const src = window._vsAudioCtx.createMediaElementSource(video);
-                  src.connect(window._vsAudioDest);
+                  const src = window._vsAC.createMediaElementSource(v);
+                  src.connect(window._vsAD);
                 } catch (e) {}
               }
 
-              const trimStart = clip.trimStart || 0;
-              const trimEnd = clip.trimEnd || clip.duration;
-              const dur = Math.max(0.1, trimEnd - trimStart);
+              const ts = clip.trimStart || 0;
+              const te = clip.trimEnd || clip.duration;
+              const sp = clip.speed || 1;
+              const dur = Math.max(0.1, (te - ts) / sp);
               let startWall = null;
 
-              video.onloadedmetadata = () => { video.currentTime = trimStart; };
-              video.onseeked = () => {
+              v.onloadedmetadata = () => { v.currentTime = ts; };
+              v.onseeked = () => {
                 startWall = performance.now();
-                video.play().catch(() => {});
-                requestAnimationFrame(drawFrame);
+                v.play().catch(() => {});
+                requestAnimationFrame(draw);
               };
 
-              function drawFrame() {
-                const elapsed = (performance.now() - startWall) / 1000;
-                drawVideoFit(ctx, video, canvas.width, canvas.height);
-                if (overlays.length) {
-                  drawOverlaysOnCanvas(ctx, overlays, elapsed, canvas.width, canvas.height);
-                }
-                const overall = ((baseProgress + elapsed) / totalDur) * 100;
-                onProgress(Math.min(99, Math.round(overall)));
-
-                if (elapsed >= dur || video.ended) {
-                  video.pause(); URL.revokeObjectURL(url); resolve(); return;
-                }
-                requestAnimationFrame(drawFrame);
+              function draw() {
+                const el = (performance.now() - startWall) / 1000;
+                ctx.save();
+                ctx.filter = getFilterCss(clip);
+                drawVideoFit(ctx, v, ca.width, ca.height);
+                ctx.filter = 'none';
+                if (clip.colorGrade && clip.colorGrade.vignette) drawVignette(ctx, ca.width, ca.height);
+                drawTransition(ctx, clip, el, dur, ca.width, ca.height);
+                ctx.restore();
+                if (overlays.length) drawOverlaysOnCanvas(ctx, overlays, el, ca.width, ca.height);
+                const pct = ((baseP + el) / totalDur) * 100;
+                onP(Math.min(99, Math.round(pct)));
+                if (el >= dur || v.ended) { v.pause(); URL.revokeObjectURL(u); resolve(); return; }
+                requestAnimationFrame(draw);
               }
 
-              video.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+              v.onerror = () => { URL.revokeObjectURL(u); resolve(); };
             });
           }
 
           function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                const result = reader.result;
-                resolve(result.split(',')[1]);
-              };
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
+              const r = new FileReader();
+              r.onloadend = () => resolve(r.result.split(',')[1]);
+              r.onerror = reject;
+              r.readAsDataURL(blob);
             });
           }
           __VS_EOF__
@@ -1877,5 +2143,5 @@ jobs:
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
           gh release create "v${{ github.run_number }}" VideoStudio.apk \
-            --title "v${{ github.run_number }}" \
-            --notes "استوديو الفيديو — الدفعة 5 (المحرر والتصدير)"
+            --title "v${{ github.run_number }} — استوديو الفيديو 7.0" \
+            --notes "🎨 20 فلتر + 6 انتقالات + تدريج لوني + Vignette + موسيقى + ملصقات + نسبة عرض"
