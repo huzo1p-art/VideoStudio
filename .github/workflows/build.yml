@@ -26,7 +26,8 @@ jobs:
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-anydpi-v26
-          mkdir -p app/src/main/assets
+          mkdir -p app/src/main/assets/css
+          mkdir -p app/src/main/assets/js
 
           cat > .gitignore << '__VS_EOF__'
           *.iml
@@ -90,8 +91,8 @@ jobs:
                   applicationId = "com.videostudio.app"
                   minSdk = 24
                   targetSdk = 34
-                  versionCode = 2
-                  versionName = "2.0"
+                  versionCode = 3
+                  versionName = "3.0"
               }
 
               buildTypes {
@@ -110,9 +111,7 @@ jobs:
               }
               kotlinOptions { jvmTarget = "17" }
 
-              buildFeatures {
-                  buildConfig = true
-              }
+              buildFeatures { buildConfig = true }
           }
 
           dependencies {
@@ -277,9 +276,7 @@ jobs:
                               try {
                                   startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                   true
-                              } catch (e: Exception) {
-                                  false
-                              }
+                              } catch (e: Exception) { false }
                           } else false
                       }
                   }
@@ -303,29 +300,15 @@ jobs:
                       }
                   }
 
-                  webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
-                      try {
-                          val request = android.app.DownloadManager.Request(Uri.parse(url)).apply {
-                              setMimeType(mimeType)
-                              addRequestHeader("User-Agent", userAgent)
-                              setNotificationVisibility(
-                                  android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                              )
-                              setDestinationInExternalPublicDir(
-                                  android.os.Environment.DIRECTORY_DOWNLOADS,
-                                  android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
-                              )
-                          }
-                          (getSystemService(DOWNLOAD_SERVICE) as android.app.DownloadManager).enqueue(request)
-                          Toast.makeText(this@MainActivity, "جاري التحميل...", Toast.LENGTH_SHORT).show()
-                      } catch (e: Exception) {
-                          Toast.makeText(this@MainActivity, "فشل التحميل", Toast.LENGTH_SHORT).show()
-                      }
-                  }
-
                   onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
                       override fun handleOnBackPressed() {
-                          if (webView.canGoBack()) webView.goBack() else finish()
+                          webView.evaluateJavascript(
+                              "window.handleBack ? window.handleBack() : false"
+                          ) { result ->
+                              if (result != "true") {
+                                  if (webView.canGoBack()) webView.goBack() else finish()
+                              }
+                          }
                       }
                   })
 
@@ -381,85 +364,465 @@ jobs:
           <!DOCTYPE html>
           <html lang="ar" dir="rtl">
           <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>استوديو الفيديو</title>
-          <style>
-            * { box-sizing: border-box; }
-            body {
-              font-family: system-ui, -apple-system, sans-serif;
-              background: #0F172A; color: #fff; margin: 0;
-              display: flex; align-items: center; justify-content: center;
-              height: 100vh; padding: 20px; text-align: center;
-            }
-            .card {
-              background: #1E293B; padding: 30px 24px;
-              border-radius: 20px; max-width: 420px; width: 100%;
-              box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            }
-            h1 { font-size: 1.8em; margin: 0 0 6px; }
-            .sub { opacity: 0.65; margin: 0 0 20px; font-size: 0.95em; }
-            button {
-              background: #4F46E5; color: #fff; border: none;
-              padding: 14px 20px; border-radius: 12px;
-              font-size: 1em; font-weight: 600; width: 100%;
-              margin-bottom: 10px; cursor: pointer;
-              transition: background 0.2s;
-            }
-            button:active { background: #3730A3; }
-            #result {
-              margin-top: 14px; font-size: 0.9em;
-              color: #10B981; min-height: 1.2em; word-break: break-all;
-            }
-            .badge {
-              display: inline-block; background: #6366F1;
-              padding: 4px 10px; border-radius: 8px;
-              font-size: 0.8em; margin-bottom: 12px;
-            }
-          </style>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+            <title>استوديو الفيديو</title>
+            <link rel="stylesheet" href="css/style.css">
           </head>
           <body>
-            <div class="card">
-              <span class="badge">الدفعة 2</span>
-              <h1>🎬 استوديو الفيديو</h1>
-              <p class="sub">جسر Kotlin ↔ JavaScript جاهز</p>
 
-              <button onclick="testBridge()">🔔 اختبار الجسر</button>
-              <button onclick="pickFile()">📁 اختر ملفاً</button>
-              <p id="result"></p>
+            <!-- شاشة الرئيسية -->
+            <div class="screen active" id="screen-home">
+              <header class="app-header">
+                <div>
+                  <div class="greeting">أهلاً بك 👋</div>
+                  <h1 class="app-title">استوديو الفيديو</h1>
+                </div>
+                <button class="icon-btn" onclick="toggleTheme()" title="الوضع">
+                  <span id="theme-icon">🌙</span>
+                </button>
+              </header>
+
+              <div class="quick-actions">
+                <button class="action-card action-primary" onclick="startNewProject()">
+                  <div class="action-icon">🎬</div>
+                  <div class="action-label">مشروع جديد</div>
+                  <div class="action-sub">ابدأ التحرير</div>
+                </button>
+                <button class="action-card" onclick="openGallery()">
+                  <div class="action-icon">📁</div>
+                  <div class="action-label">مشاريعي</div>
+                  <div class="action-sub" id="projects-count">0 مشروع</div>
+                </button>
+              </div>
+
+              <section class="section">
+                <h2 class="section-title">أدوات سريعة</h2>
+                <div class="tools-grid">
+                  <div class="tool" onclick="soon('قص الفيديو')"><div class="tool-icon">✂️</div><div>قص</div></div>
+                  <div class="tool" onclick="soon('دمج الفيديوهات')"><div class="tool-icon">🔗</div><div>دمج</div></div>
+                  <div class="tool" onclick="soon('إضافة نص')"><div class="tool-icon">📝</div><div>نص</div></div>
+                  <div class="tool" onclick="soon('موسيقى')"><div class="tool-icon">🎵</div><div>موسيقى</div></div>
+                  <div class="tool" onclick="soon('فلاتر')"><div class="tool-icon">🎨</div><div>فلاتر</div></div>
+                  <div class="tool" onclick="soon('تحويل صيغة')"><div class="tool-icon">🔄</div><div>تحويل</div></div>
+                  <div class="tool" onclick="soon('ضغط الفيديو')"><div class="tool-icon">📉</div><div>ضغط</div></div>
+                  <div class="tool" onclick="soon('صورة مصغرة')"><div class="tool-icon">🖼️</div><div>غلاف</div></div>
+                </div>
+              </section>
+
+              <section class="section">
+                <h2 class="section-title">آخر المشاريع</h2>
+                <div id="recent-projects" class="empty-state">
+                  <div class="empty-icon">📺</div>
+                  <div class="empty-text">لا توجد مشاريع بعد</div>
+                  <div class="empty-hint">اضغط «مشروع جديد» للبدء</div>
+                </div>
+              </section>
             </div>
 
-          <script>
-            function testBridge() {
-              const r = document.getElementById('result');
-              if (!window.Android) {
-                r.style.color = '#EF4444';
-                r.innerText = 'الجسر غير متاح';
-                return;
-              }
-              r.style.color = '#10B981';
-              r.innerText = 'الجسر يعمل! الإصدار ' + Android.getVersion();
-              Android.toast('مرحباً من أندرويد 👋');
-              Android.vibrate(80);
-            }
+            <!-- شاشة المشاريع -->
+            <div class="screen" id="screen-projects">
+              <header class="app-header">
+                <h1 class="app-title">مشاريعي</h1>
+              </header>
+              <div id="projects-list" class="empty-state">
+                <div class="empty-icon">📂</div>
+                <div class="empty-text">لا توجد مشاريع</div>
+                <div class="empty-hint">ستظهر مشاريعك هنا بعد إنشائها</div>
+              </div>
+            </div>
 
-            function pickFile() {
-              const r = document.getElementById('result');
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'video/*,image/*,audio/*';
-              input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                r.style.color = '#F59E0B';
-                r.innerText = '📄 ' + file.name + ' — ' + (file.size / 1024).toFixed(1) + ' KB';
-                if (window.Android) Android.vibrate(30);
-              };
-              input.click();
-            }
-          </script>
+            <!-- شاشة الإعدادات -->
+            <div class="screen" id="screen-settings">
+              <header class="app-header">
+                <h1 class="app-title">الإعدادات</h1>
+              </header>
+
+              <div class="settings-list">
+                <div class="setting-item" onclick="toggleTheme()">
+                  <div class="setting-icon">🌓</div>
+                  <div class="setting-info">
+                    <div class="setting-name">الوضع الداكن</div>
+                    <div class="setting-desc">تبديل بين الوضع الفاتح والداكن</div>
+                  </div>
+                  <div class="toggle" id="theme-toggle"></div>
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-icon">ℹ️</div>
+                  <div class="setting-info">
+                    <div class="setting-name">الإصدار</div>
+                    <div class="setting-desc" id="app-version">—</div>
+                  </div>
+                </div>
+
+                <div class="setting-item" onclick="testBridge()">
+                  <div class="setting-icon">🔔</div>
+                  <div class="setting-info">
+                    <div class="setting-name">اختبار الجسر</div>
+                    <div class="setting-desc">تأكد أن Kotlin ↔ JS يعمل</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- شريط التنقل -->
+            <nav class="bottom-nav">
+              <button class="nav-btn active" data-screen="home" onclick="switchScreen('home')">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">الرئيسية</span>
+              </button>
+              <button class="nav-btn" data-screen="projects" onclick="switchScreen('projects')">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">مشاريعي</span>
+              </button>
+              <button class="nav-btn" data-screen="settings" onclick="switchScreen('settings')">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">الإعدادات</span>
+              </button>
+            </nav>
+
+            <script src="js/app.js"></script>
           </body>
           </html>
+          __VS_EOF__
+
+          cat > app/src/main/assets/css/style.css << '__VS_EOF__'
+          * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+          :root {
+            --bg: #0F172A;
+            --surface: #1E293B;
+            --surface-2: #334155;
+            --text: #F1F5F9;
+            --text-muted: #94A3B8;
+            --primary: #6366F1;
+            --primary-dark: #4F46E5;
+            --accent: #10B981;
+            --danger: #EF4444;
+            --border: rgba(148,163,184,0.15);
+          }
+
+          body.light {
+            --bg: #F8FAFC;
+            --surface: #FFFFFF;
+            --surface-2: #F1F5F9;
+            --text: #0F172A;
+            --text-muted: #64748B;
+            --border: rgba(15,23,42,0.1);
+          }
+
+          body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0 0 90px 0;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+          }
+
+          .screen { display: none; padding: 20px 20px 10px; animation: fadeIn 0.25s; }
+          .screen.active { display: block; }
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+          /* Header */
+          .app-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px;
+          }
+          .greeting { font-size: 0.85em; color: var(--text-muted); margin-bottom: 2px; }
+          .app-title { font-size: 1.6em; margin: 0; font-weight: 700; }
+
+          .icon-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            font-size: 1.3em;
+            color: var(--text);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.15s;
+          }
+          .icon-btn:active { transform: scale(0.92); }
+
+          /* Quick actions */
+          .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 28px;
+          }
+
+          .action-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px 16px;
+            text-align: right;
+            color: var(--text);
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.2s;
+            min-height: 120px;
+            display: flex; flex-direction: column;
+            justify-content: space-between;
+          }
+          .action-card:active { transform: scale(0.97); }
+          .action-card.action-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            color: #fff;
+          }
+          .action-icon { font-size: 1.8em; }
+          .action-label { font-weight: 700; font-size: 1.05em; margin-top: 8px; }
+          .action-sub { font-size: 0.8em; opacity: 0.75; margin-top: 2px; }
+
+          /* Sections */
+          .section { margin-bottom: 28px; }
+          .section-title {
+            font-size: 1.05em;
+            font-weight: 700;
+            margin: 0 0 14px;
+            color: var(--text);
+          }
+
+          /* Tools grid */
+          .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+          }
+          .tool {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 6px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.75em;
+            color: var(--text);
+            transition: transform 0.15s;
+          }
+          .tool:active { transform: scale(0.92); }
+          .tool-icon { font-size: 1.5em; margin-bottom: 6px; }
+
+          /* Empty state */
+          .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--surface);
+            border: 1px dashed var(--border);
+            border-radius: 18px;
+          }
+          .empty-icon { font-size: 2.5em; margin-bottom: 10px; opacity: 0.5; }
+          .empty-text { font-weight: 600; margin-bottom: 4px; }
+          .empty-hint { font-size: 0.85em; color: var(--text-muted); }
+
+          /* Settings */
+          .settings-list {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            overflow: hidden;
+          }
+          .setting-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+          }
+          .setting-item:last-child { border-bottom: none; }
+          .setting-item:active { background: var(--surface-2); }
+          .setting-icon { font-size: 1.4em; margin-left: 12px; }
+          .setting-info { flex: 1; }
+          .setting-name { font-weight: 600; margin-bottom: 2px; }
+          .setting-desc { font-size: 0.8em; color: var(--text-muted); }
+
+          .toggle {
+            width: 44px; height: 26px;
+            background: var(--surface-2);
+            border-radius: 13px;
+            position: relative;
+            transition: background 0.2s;
+          }
+          .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px; right: 3px;
+            width: 20px; height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+          }
+          body:not(.light) .toggle { background: var(--primary); }
+          body:not(.light) .toggle::after { transform: translateX(-18px); }
+
+          /* Bottom nav */
+          .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            z-index: 100;
+            backdrop-filter: blur(10px);
+          }
+          .nav-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 4px;
+            cursor: pointer;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 3px;
+            transition: color 0.2s;
+          }
+          .nav-btn.active { color: var(--primary); }
+          .nav-icon { font-size: 1.3em; }
+          .nav-label { font-size: 0.7em; font-weight: 600; }
+          __VS_EOF__
+
+          cat > app/src/main/assets/js/app.js << '__VS_EOF__'
+          // ============ إعدادات ============
+          const state = {
+            screen: 'home',
+            theme: localStorage.getItem('theme') || 'dark',
+            projects: JSON.parse(localStorage.getItem('projects') || '[]')
+          };
+
+          // ============ التهيئة ============
+          document.addEventListener('DOMContentLoaded', () => {
+            applyTheme(state.theme);
+            updateProjectsUI();
+            if (window.Android) {
+              const v = Android.getVersion();
+              const el = document.getElementById('app-version');
+              if (el) el.innerText = 'الإصدار ' + v;
+            }
+          });
+
+          // ============ التنقل ============
+          function switchScreen(name) {
+            state.screen = name;
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('screen-' + name).classList.add('active');
+            document.querySelector('.nav-btn[data-screen="' + name + '"]').classList.add('active');
+            if (window.Android) Android.vibrate(15);
+            window.scrollTo(0, 0);
+          }
+
+          // ============ الثيم ============
+          function applyTheme(theme) {
+            document.body.classList.toggle('light', theme === 'light');
+            const icon = document.getElementById('theme-icon');
+            if (icon) icon.innerText = theme === 'light' ? '☀️' : '🌙';
+            localStorage.setItem('theme', theme);
+            state.theme = theme;
+          }
+
+          function toggleTheme() {
+            applyTheme(state.theme === 'light' ? 'dark' : 'light');
+            if (window.Android) Android.vibrate(20);
+          }
+
+          // ============ المشاريع ============
+          function updateProjectsUI() {
+            const count = state.projects.length;
+            const countEl = document.getElementById('projects-count');
+            if (countEl) countEl.innerText = count + ' مشروع';
+
+            const listEl = document.getElementById('projects-list');
+            const recentEl = document.getElementById('recent-projects');
+
+            if (count === 0) {
+              if (listEl) listEl.innerHTML = emptyProjectsHTML();
+              if (recentEl) recentEl.innerHTML = emptyRecentHTML();
+              return;
+            }
+
+            const cardsHTML = state.projects.slice().reverse().map(p => projectCardHTML(p)).join('');
+            if (listEl) listEl.innerHTML = cardsHTML;
+            if (recentEl) {
+              const recent = state.projects.slice(-2).reverse();
+              recentEl.innerHTML = recent.map(p => projectCardHTML(p)).join('');
+            }
+          }
+
+          function emptyProjectsHTML() {
+            return '<div class="empty-icon">📂</div>' +
+                   '<div class="empty-text">لا توجد مشاريع</div>' +
+                   '<div class="empty-hint">ستظهر مشاريعك هنا</div>';
+          }
+
+          function emptyRecentHTML() {
+            return '<div class="empty-icon">📺</div>' +
+                   '<div class="empty-text">لا توجد مشاريع بعد</div>' +
+                   '<div class="empty-hint">اضغط «مشروع جديد» للبدء</div>';
+          }
+
+          function projectCardHTML(p) {
+            return '<div class="tool" style="padding:14px;text-align:right;margin-bottom:10px;display:flex;align-items:center;gap:12px" onclick="openProject(\'' + p.id + '\')">' +
+                   '<div class="tool-icon" style="margin:0">🎬</div>' +
+                   '<div style="flex:1"><div style="font-weight:600">' + escapeHtml(p.name) + '</div>' +
+                   '<div style="font-size:0.75em;opacity:0.6">' + new Date(p.createdAt).toLocaleDateString('ar') + '</div></div>' +
+                   '</div>';
+          }
+
+          function startNewProject() {
+            const name = prompt('اسم المشروع:', 'مشروع ' + (state.projects.length + 1));
+            if (!name) return;
+            const project = {
+              id: 'p_' + Date.now(),
+              name: name.trim(),
+              createdAt: Date.now(),
+              clips: []
+            };
+            state.projects.push(project);
+            localStorage.setItem('projects', JSON.stringify(state.projects));
+            updateProjectsUI();
+            if (window.Android) { Android.toast('تم إنشاء المشروع'); Android.vibrate(30); }
+          }
+
+          function openProject(id) {
+            if (window.Android) Android.toast('المحرر سيكون في الدفعة 5');
+          }
+
+          function openGallery() {
+            switchScreen('projects');
+          }
+
+          // ============ مساعدات ============
+          function soon(name) {
+            if (window.Android) Android.toast(name + ' — قادم في الدفعة القادمة');
+            else alert(name + ' — قادم قريباً');
+            if (window.Android) Android.vibrate(20);
+          }
+
+          function testBridge() {
+            if (!window.Android) { alert('الجسر غير متاح'); return; }
+            Android.toast('الجسر يعمل! الإصدار ' + Android.getVersion());
+            Android.vibrate(50);
+          }
+
+          function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c =>
+              ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+          }
+
+          // ============ زر الرجوع ============
+          window.handleBack = function() {
+            if (state.screen !== 'home') {
+              switchScreen('home');
+              return true;
+            }
+            return false;
+          };
           __VS_EOF__
 
       - name: Build APK
@@ -478,4 +841,4 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
           gh release create "v${{ github.run_number }}" VideoStudio.apk \
             --title "v${{ github.run_number }}" \
-            --notes "استوديو الفيديو — الدفعة 2 (جسر Kotlin↔JS)"
+            --notes "استوديو الفيديو — الدفعة 3 (الواجهة الرئيسية)"
