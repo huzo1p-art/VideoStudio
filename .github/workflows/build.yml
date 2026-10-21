@@ -91,8 +91,8 @@ jobs:
                   applicationId = "com.videostudio.app"
                   minSdk = 24
                   targetSdk = 34
-                  versionCode = 3
-                  versionName = "3.0"
+                  versionCode = 4
+                  versionName = "4.0"
               }
 
               buildTypes {
@@ -229,7 +229,6 @@ jobs:
           import android.webkit.WebChromeClient
           import android.webkit.WebView
           import android.webkit.WebViewClient
-          import android.widget.Toast
           import androidx.activity.OnBackPressedCallback
           import androidx.activity.result.ActivityResultLauncher
           import androidx.activity.result.contract.ActivityResultContracts
@@ -371,7 +370,7 @@ jobs:
           </head>
           <body>
 
-            <!-- شاشة الرئيسية -->
+            <!-- الرئيسية -->
             <div class="screen active" id="screen-home">
               <header class="app-header">
                 <div>
@@ -420,7 +419,7 @@ jobs:
               </section>
             </div>
 
-            <!-- شاشة المشاريع -->
+            <!-- المشاريع -->
             <div class="screen" id="screen-projects">
               <header class="app-header">
                 <h1 class="app-title">مشاريعي</h1>
@@ -432,7 +431,31 @@ jobs:
               </div>
             </div>
 
-            <!-- شاشة الإعدادات -->
+            <!-- مشروع مفتوح -->
+            <div class="screen" id="screen-project">
+              <header class="app-header">
+                <button class="icon-btn" onclick="backToProjects()">←</button>
+                <div style="flex:1;margin-right:12px">
+                  <div class="greeting">المشروع</div>
+                  <h1 class="app-title" id="project-title">—</h1>
+                </div>
+                <button class="icon-btn" onclick="deleteCurrentProject()" title="حذف">🗑️</button>
+              </header>
+
+              <button class="add-clip-btn" onclick="addClipToProject()">
+                <span class="plus">+</span> إضافة مقطع فيديو
+              </button>
+
+              <div id="clips-list" class="clips-list">
+                <div class="empty-state">
+                  <div class="empty-icon">🎞️</div>
+                  <div class="empty-text">لا توجد مقاطع</div>
+                  <div class="empty-hint">أضف أول مقطع من زر الأعلى</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الإعدادات -->
             <div class="screen" id="screen-settings">
               <header class="app-header">
                 <h1 class="app-title">الإعدادات</h1>
@@ -443,9 +466,9 @@ jobs:
                   <div class="setting-icon">🌓</div>
                   <div class="setting-info">
                     <div class="setting-name">الوضع الداكن</div>
-                    <div class="setting-desc">تبديل بين الوضع الفاتح والداكن</div>
+                    <div class="setting-desc">تبديل بين الفاتح والداكن</div>
                   </div>
-                  <div class="toggle" id="theme-toggle"></div>
+                  <div class="toggle"></div>
                 </div>
 
                 <div class="setting-item">
@@ -453,6 +476,14 @@ jobs:
                   <div class="setting-info">
                     <div class="setting-name">الإصدار</div>
                     <div class="setting-desc" id="app-version">—</div>
+                  </div>
+                </div>
+
+                <div class="setting-item" onclick="clearStorage()">
+                  <div class="setting-icon">🗑️</div>
+                  <div class="setting-info">
+                    <div class="setting-name">مسح كل البيانات</div>
+                    <div class="setting-desc">حذف المشاريع والمقاطع</div>
                   </div>
                 </div>
 
@@ -482,7 +513,9 @@ jobs:
               </button>
             </nav>
 
+            <script src="js/db.js"></script>
             <script src="js/app.js"></script>
+            <script src="js/gallery.js"></script>
           </body>
           </html>
           __VS_EOF__
@@ -526,7 +559,6 @@ jobs:
           .screen.active { display: block; }
           @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-          /* Header */
           .app-header {
             display: flex; align-items: center; justify-content: space-between;
             margin-bottom: 24px;
@@ -547,7 +579,6 @@ jobs:
           }
           .icon-btn:active { transform: scale(0.92); }
 
-          /* Quick actions */
           .quick-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -563,7 +594,7 @@ jobs:
             text-align: right;
             color: var(--text);
             cursor: pointer;
-            transition: transform 0.15s, border-color 0.2s;
+            transition: transform 0.15s;
             min-height: 120px;
             display: flex; flex-direction: column;
             justify-content: space-between;
@@ -578,16 +609,9 @@ jobs:
           .action-label { font-weight: 700; font-size: 1.05em; margin-top: 8px; }
           .action-sub { font-size: 0.8em; opacity: 0.75; margin-top: 2px; }
 
-          /* Sections */
           .section { margin-bottom: 28px; }
-          .section-title {
-            font-size: 1.05em;
-            font-weight: 700;
-            margin: 0 0 14px;
-            color: var(--text);
-          }
+          .section-title { font-size: 1.05em; font-weight: 700; margin: 0 0 14px; }
 
-          /* Tools grid */
           .tools-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -607,7 +631,6 @@ jobs:
           .tool:active { transform: scale(0.92); }
           .tool-icon { font-size: 1.5em; margin-bottom: 6px; }
 
-          /* Empty state */
           .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -619,7 +642,6 @@ jobs:
           .empty-text { font-weight: 600; margin-bottom: 4px; }
           .empty-hint { font-size: 0.85em; color: var(--text-muted); }
 
-          /* Settings */
           .settings-list {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -660,7 +682,6 @@ jobs:
           body:not(.light) .toggle { background: var(--primary); }
           body:not(.light) .toggle::after { transform: translateX(-18px); }
 
-          /* Bottom nav */
           .bottom-nav {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -669,7 +690,6 @@ jobs:
             display: flex;
             padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
             z-index: 100;
-            backdrop-filter: blur(10px);
           }
           .nav-btn {
             flex: 1;
@@ -685,14 +705,188 @@ jobs:
           .nav-btn.active { color: var(--primary); }
           .nav-icon { font-size: 1.3em; }
           .nav-label { font-size: 0.7em; font-weight: 600; }
+
+          /* === الدفعة 4: بطاقات المشاريع والمقاطع === */
+          .project-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.15s;
+          }
+          .project-card:active { transform: scale(0.98); }
+          .project-thumb {
+            width: 56px; height: 56px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6em;
+            flex-shrink: 0;
+          }
+          .project-info { flex: 1; min-width: 0; }
+          .project-name {
+            font-weight: 700;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .project-meta {
+            font-size: 0.75em;
+            color: var(--text-muted);
+          }
+
+          .add-clip-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            border: none;
+            border-radius: 16px;
+            padding: 16px;
+            font-size: 1.05em;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.15s;
+          }
+          .add-clip-btn:active { transform: scale(0.97); }
+          .add-clip-btn .plus { font-size: 1.4em; }
+
+          .clips-list { display: flex; flex-direction: column; gap: 10px; }
+
+          .clip-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          .clip-thumb {
+            width: 80px; height: 60px;
+            border-radius: 10px;
+            background: #000;
+            object-fit: cover;
+            flex-shrink: 0;
+          }
+          .clip-info { flex: 1; min-width: 0; }
+          .clip-name {
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .clip-meta {
+            font-size: 0.72em;
+            color: var(--text-muted);
+          }
+          .clip-delete {
+            background: transparent;
+            border: none;
+            color: var(--danger);
+            font-size: 1.3em;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 8px;
+          }
+          .clip-delete:active { background: rgba(239,68,68,0.1); }
+
+          .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15,23,42,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: #fff;
+            font-weight: 600;
+          }
+          .loading-overlay.hidden { display: none; }
+          __VS_EOF__
+
+          cat > app/src/main/assets/js/db.js << '__VS_EOF__'
+          // IndexedDB بسيط لتخزين فيديوهات المشاريع
+          const VDB = (() => {
+            const DB_NAME = 'videostudio_db';
+            const DB_VERSION = 1;
+            let dbPromise = null;
+
+            function open() {
+              if (dbPromise) return dbPromise;
+              dbPromise = new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = (e) => {
+                  const db = e.target.result;
+                  if (!db.objectStoreNames.contains('clips')) {
+                    const store = db.createObjectStore('clips', { keyPath: 'id' });
+                    store.createIndex('projectId', 'projectId', { unique: false });
+                  }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+              });
+              return dbPromise;
+            }
+
+            async function tx(store, mode, fn) {
+              const db = await open();
+              return new Promise((resolve, reject) => {
+                const t = db.transaction(store, mode);
+                const s = t.objectStore(store);
+                const result = fn(s);
+                t.oncomplete = () => resolve(result);
+                t.onerror = () => reject(t.error);
+              });
+            }
+
+            return {
+              async addClip(clip) {
+                return tx('clips', 'readwrite', s => s.add(clip));
+              },
+              async getClipsByProject(projectId) {
+                const db = await open();
+                return new Promise((resolve, reject) => {
+                  const t = db.transaction('clips', 'readonly');
+                  const idx = t.objectStore('clips').index('projectId');
+                  const req = idx.getAll(projectId);
+                  req.onsuccess = () => resolve(req.result.sort((a,b) => a.createdAt - b.createdAt));
+                  req.onerror = () => reject(req.error);
+                });
+              },
+              async deleteClip(id) {
+                return tx('clips', 'readwrite', s => s.delete(id));
+              },
+              async deleteClipsByProject(projectId) {
+                const clips = await this.getClipsByProject(projectId);
+                for (const c of clips) await this.deleteClip(c.id);
+              },
+              async clearAll() {
+                return tx('clips', 'readwrite', s => s.clear());
+              }
+            };
+          })();
           __VS_EOF__
 
           cat > app/src/main/assets/js/app.js << '__VS_EOF__'
-          // ============ إعدادات ============
+          // ============ الحالة ============
           const state = {
             screen: 'home',
             theme: localStorage.getItem('theme') || 'dark',
-            projects: JSON.parse(localStorage.getItem('projects') || '[]')
+            projects: JSON.parse(localStorage.getItem('projects') || '[]'),
+            currentProjectId: null
           };
 
           // ============ التهيئة ============
@@ -710,11 +904,14 @@ jobs:
           function switchScreen(name) {
             state.screen = name;
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById('screen-' + name);
+            if (target) target.classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('screen-' + name).classList.add('active');
-            document.querySelector('.nav-btn[data-screen="' + name + '"]').classList.add('active');
+            const navBtn = document.querySelector('.nav-btn[data-screen="' + name + '"]');
+            if (navBtn) navBtn.classList.add('active');
             if (window.Android) Android.vibrate(15);
             window.scrollTo(0, 0);
+            if (name === 'projects') updateProjectsUI();
           }
 
           // ============ الثيم ============
@@ -732,6 +929,10 @@ jobs:
           }
 
           // ============ المشاريع ============
+          function saveProjects() {
+            localStorage.setItem('projects', JSON.stringify(state.projects));
+          }
+
           function updateProjectsUI() {
             const count = state.projects.length;
             const countEl = document.getElementById('projects-count');
@@ -767,37 +968,67 @@ jobs:
           }
 
           function projectCardHTML(p) {
-            return '<div class="tool" style="padding:14px;text-align:right;margin-bottom:10px;display:flex;align-items:center;gap:12px" onclick="openProject(\'' + p.id + '\')">' +
-                   '<div class="tool-icon" style="margin:0">🎬</div>' +
-                   '<div style="flex:1"><div style="font-weight:600">' + escapeHtml(p.name) + '</div>' +
-                   '<div style="font-size:0.75em;opacity:0.6">' + new Date(p.createdAt).toLocaleDateString('ar') + '</div></div>' +
+            const clipCount = p.clipCount || 0;
+            const dateStr = new Date(p.createdAt).toLocaleDateString('ar');
+            return '<div class="project-card" onclick="openProject(\'' + p.id + '\')">' +
+                   '<div class="project-thumb">🎬</div>' +
+                   '<div class="project-info">' +
+                   '<div class="project-name">' + escapeHtml(p.name) + '</div>' +
+                   '<div class="project-meta">' + clipCount + ' مقطع • ' + dateStr + '</div>' +
+                   '</div>' +
                    '</div>';
           }
 
           function startNewProject() {
             const name = prompt('اسم المشروع:', 'مشروع ' + (state.projects.length + 1));
-            if (!name) return;
+            if (!name || !name.trim()) return;
             const project = {
               id: 'p_' + Date.now(),
               name: name.trim(),
               createdAt: Date.now(),
-              clips: []
+              clipCount: 0
             };
             state.projects.push(project);
-            localStorage.setItem('projects', JSON.stringify(state.projects));
+            saveProjects();
             updateProjectsUI();
             if (window.Android) { Android.toast('تم إنشاء المشروع'); Android.vibrate(30); }
           }
 
           function openProject(id) {
-            if (window.Android) Android.toast('المحرر سيكون في الدفعة 5');
+            const project = state.projects.find(p => p.id === id);
+            if (!project) return;
+            state.currentProjectId = id;
+            document.getElementById('project-title').innerText = project.name;
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-project').classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            loadClipsForProject(id);
+            window.scrollTo(0, 0);
+          }
+
+          function backToProjects() {
+            state.currentProjectId = null;
+            switchScreen('projects');
+          }
+
+          function deleteCurrentProject() {
+            if (!state.currentProjectId) return;
+            const project = state.projects.find(p => p.id === state.currentProjectId);
+            if (!project) return;
+            if (!confirm('حذف المشروع "' + project.name + '" وكل مقاطعه؟')) return;
+            VDB.deleteClipsByProject(state.currentProjectId).catch(() => {});
+            state.projects = state.projects.filter(p => p.id !== state.currentProjectId);
+            saveProjects();
+            updateProjectsUI();
+            state.currentProjectId = null;
+            switchScreen('projects');
+            if (window.Android) Android.toast('تم حذف المشروع');
           }
 
           function openGallery() {
             switchScreen('projects');
           }
 
-          // ============ مساعدات ============
           function soon(name) {
             if (window.Android) Android.toast(name + ' — قادم في الدفعة القادمة');
             else alert(name + ' — قادم قريباً');
@@ -810,6 +1041,15 @@ jobs:
             Android.vibrate(50);
           }
 
+          async function clearStorage() {
+            if (!confirm('حذف كل المشاريع والمقاطع نهائياً؟')) return;
+            try { await VDB.clearAll(); } catch (e) {}
+            localStorage.removeItem('projects');
+            state.projects = [];
+            updateProjectsUI();
+            if (window.Android) { Android.toast('تم مسح كل البيانات'); Android.vibrate(40); }
+          }
+
           function escapeHtml(s) {
             return String(s).replace(/[&<>"']/g, c =>
               ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -817,12 +1057,214 @@ jobs:
 
           // ============ زر الرجوع ============
           window.handleBack = function() {
-            if (state.screen !== 'home') {
-              switchScreen('home');
+            if (state.screen === 'home' && !document.getElementById('screen-project').classList.contains('active')) {
+              return false;
+            }
+            if (document.getElementById('screen-project').classList.contains('active')) {
+              backToProjects();
               return true;
             }
-            return false;
+            switchScreen('home');
+            return true;
           };
+          __VS_EOF__
+
+          cat > app/src/main/assets/js/gallery.js << '__VS_EOF__'
+          // ============ إدارة مقاطع المشروع ============
+          function showLoading(text) {
+            let overlay = document.querySelector('.loading-overlay');
+            if (!overlay) {
+              overlay = document.createElement('div');
+              overlay.className = 'loading-overlay';
+              document.body.appendChild(overlay);
+            }
+            overlay.innerHTML = '<div>' + text + '</div>';
+            overlay.classList.remove('hidden');
+          }
+
+          function hideLoading() {
+            const overlay = document.querySelector('.loading-overlay');
+            if (overlay) overlay.classList.add('hidden');
+          }
+
+          async function addClipToProject() {
+            if (!state.currentProjectId) return;
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              await processVideoFile(file);
+            };
+            input.click();
+          }
+
+          async function processVideoFile(file) {
+            if (!file.type.startsWith('video/')) {
+              if (window.Android) Android.toast('الملف ليس فيديو');
+              return;
+            }
+
+            showLoading('جارٍ معالجة الفيديو...');
+
+            try {
+              const duration = await getVideoDuration(file);
+              const thumbnail = await getVideoThumbnail(file);
+
+              const clip = {
+                id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                projectId: state.currentProjectId,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                duration: duration,
+                thumbnail: thumbnail,
+                blob: file,
+                createdAt: Date.now()
+              };
+
+              await VDB.addClip(clip);
+
+              const project = state.projects.find(p => p.id === state.currentProjectId);
+              if (project) {
+                project.clipCount = (project.clipCount || 0) + 1;
+                saveProjects();
+              }
+
+              await loadClipsForProject(state.currentProjectId);
+              hideLoading();
+
+              if (window.Android) {
+                Android.toast('تمت إضافة المقطع');
+                Android.vibrate(50);
+              }
+            } catch (err) {
+              hideLoading();
+              console.error(err);
+              if (window.Android) Android.toast('فشل حفظ المقطع');
+              else alert('فشل حفظ المقطع: ' + err.message);
+            }
+          }
+
+          function getVideoDuration(file) {
+            return new Promise((resolve) => {
+              const url = URL.createObjectURL(file);
+              const v = document.createElement('video');
+              v.preload = 'metadata';
+              v.onloadedmetadata = () => {
+                URL.revokeObjectURL(url);
+                resolve(isFinite(v.duration) ? v.duration : 0);
+              };
+              v.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
+              v.src = url;
+            });
+          }
+
+          function getVideoThumbnail(file) {
+            return new Promise((resolve) => {
+              const url = URL.createObjectURL(file);
+              const v = document.createElement('video');
+              v.preload = 'auto';
+              v.muted = true;
+              v.playsInline = true;
+              v.crossOrigin = 'anonymous';
+
+              const cleanup = () => URL.revokeObjectURL(url);
+
+              v.onloadeddata = () => {
+                try {
+                  v.currentTime = Math.min(1, (v.duration || 1) / 2);
+                } catch (e) {
+                  cleanup();
+                  resolve('');
+                }
+              };
+
+              v.onseeked = () => {
+                try {
+                  const canvas = document.createElement('canvas');
+                  const w = 160;
+                  const h = Math.round((v.videoHeight / v.videoWidth) * w) || 120;
+                  canvas.width = w;
+                  canvas.height = h;
+                  const ctx = canvas.getContext('2d');
+                  ctx.drawImage(v, 0, 0, w, h);
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                  cleanup();
+                  resolve(dataUrl);
+                } catch (e) {
+                  cleanup();
+                  resolve('');
+                }
+              };
+
+              v.onerror = () => { cleanup(); resolve(''); };
+              v.src = url;
+            });
+          }
+
+          async function loadClipsForProject(projectId) {
+            const container = document.getElementById('clips-list');
+            try {
+              const clips = await VDB.getClipsByProject(projectId);
+              if (!clips.length) {
+                container.innerHTML =
+                  '<div class="empty-state">' +
+                  '<div class="empty-icon">🎞️</div>' +
+                  '<div class="empty-text">لا توجد مقاطع</div>' +
+                  '<div class="empty-hint">أضف أول مقطع من زر الأعلى</div>' +
+                  '</div>';
+                return;
+              }
+              container.innerHTML = clips.map(c => clipCardHTML(c)).join('');
+            } catch (e) {
+              container.innerHTML =
+                '<div class="empty-state">' +
+                '<div class="empty-icon">⚠️</div>' +
+                '<div class="empty-text">فشل تحميل المقاطع</div>' +
+                '</div>';
+            }
+          }
+
+          function clipCardHTML(clip) {
+            const dur = formatDuration(clip.duration);
+            const size = (clip.size / (1024 * 1024)).toFixed(1) + ' MB';
+            const thumb = clip.thumbnail
+              ? '<img class="clip-thumb" src="' + clip.thumbnail + '" alt="">'
+              : '<div class="clip-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5em">🎬</div>';
+            return '<div class="clip-card">' +
+                   thumb +
+                   '<div class="clip-info">' +
+                   '<div class="clip-name">' + escapeHtml(clip.name) + '</div>' +
+                   '<div class="clip-meta">' + dur + ' • ' + size + '</div>' +
+                   '</div>' +
+                   '<button class="clip-delete" onclick="removeClip(\'' + clip.id + '\')" title="حذف">🗑️</button>' +
+                   '</div>';
+          }
+
+          async function removeClip(clipId) {
+            if (!confirm('حذف هذا المقطع؟')) return;
+            try {
+              await VDB.deleteClip(clipId);
+              const project = state.projects.find(p => p.id === state.currentProjectId);
+              if (project && project.clipCount > 0) {
+                project.clipCount -= 1;
+                saveProjects();
+              }
+              await loadClipsForProject(state.currentProjectId);
+              if (window.Android) Android.toast('تم حذف المقطع');
+            } catch (e) {
+              if (window.Android) Android.toast('فشل الحذف');
+            }
+          }
+
+          function formatDuration(seconds) {
+            if (!seconds || !isFinite(seconds)) return '—';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return m + ':' + String(s).padStart(2, '0');
+          }
           __VS_EOF__
 
       - name: Build APK
@@ -841,4 +1283,4 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
           gh release create "v${{ github.run_number }}" VideoStudio.apk \
             --title "v${{ github.run_number }}" \
-            --notes "استوديو الفيديو — الدفعة 3 (الواجهة الرئيسية)"
+            --notes "استوديو الفيديو — الدفعة 4 (معرض + اختيار فيديو)"
