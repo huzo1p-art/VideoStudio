@@ -82,8 +82,8 @@ jobs:
                   applicationId = "com.videostudio.app"
                   minSdk = 24
                   targetSdk = 34
-                  versionCode = 7
-                  versionName = "7.0"
+                  versionCode = 71
+                  versionName = "7.1"
               }
               buildTypes {
                   release {
@@ -376,14 +376,14 @@ jobs:
             <section class="section">
               <h2 class="section-title">أدوات سريعة</h2>
               <div class="tools-grid">
-                <div class="tool" onclick="soon('قص')"><div class="tool-icon">✂️</div><div>قص</div></div>
-                <div class="tool" onclick="soon('دمج')"><div class="tool-icon">🔗</div><div>دمج</div></div>
-                <div class="tool" onclick="soon('نص')"><div class="tool-icon">📝</div><div>نص</div></div>
-                <div class="tool" onclick="soon('موسيقى')"><div class="tool-icon">🎵</div><div>موسيقى</div></div>
-                <div class="tool" onclick="soon('فلاتر')"><div class="tool-icon">🎨</div><div>فلاتر</div></div>
-                <div class="tool" onclick="soon('تحويل')"><div class="tool-icon">🔄</div><div>تحويل</div></div>
-                <div class="tool" onclick="soon('ضغط')"><div class="tool-icon">📉</div><div>ضغط</div></div>
-                <div class="tool" onclick="soon('غلاف')"><div class="tool-icon">🖼️</div><div>غلاف</div></div>
+                <div class="tool" onclick="quickTool('trim')"><div class="tool-icon">✂️</div><div>قص</div></div>
+                <div class="tool" onclick="quickTool('merge')"><div class="tool-icon">🔗</div><div>دمج</div></div>
+                <div class="tool" onclick="quickTool('text')"><div class="tool-icon">📝</div><div>نص</div></div>
+                <div class="tool" onclick="quickTool('music')"><div class="tool-icon">🎵</div><div>موسيقى</div></div>
+                <div class="tool" onclick="quickTool('filter')"><div class="tool-icon">🎨</div><div>فلاتر</div></div>
+                <div class="tool" onclick="quickTool('sticker')"><div class="tool-icon">😀</div><div>ملصق</div></div>
+                <div class="tool" onclick="quickTool('grade')"><div class="tool-icon">🎛️</div><div>تدريج</div></div>
+                <div class="tool" onclick="quickTool('aspect')"><div class="tool-icon">📐</div><div>نسبة</div></div>
               </div>
             </section>
             <section class="section">
@@ -411,7 +411,6 @@ jobs:
               </div>
               <button class="icon-btn" onclick="deleteCurrentProject()">🗑️</button>
             </header>
-
             <div class="aspect-row">
               <span class="aspect-label">📐 نسبة العرض:</span>
               <div class="aspect-btns">
@@ -421,7 +420,6 @@ jobs:
                 <button data-ar="4:5" onclick="setAspectRatio('4:5')">4:5</button>
               </div>
             </div>
-
             <div style="display:flex;gap:10px;margin-bottom:16px">
               <button class="add-clip-btn" style="flex:1" onclick="addClipToProject()"><span class="plus">+</span> إضافة مقطع</button>
               <button class="add-clip-btn" style="flex:0;padding:16px 20px;background:linear-gradient(135deg,#10B981,#059669)" onclick="openEditor()">✏️</button>
@@ -901,7 +899,7 @@ jobs:
                     s.createIndex('projectId', 'projectId', { unique: false });
                   }
                   if (!db.objectStoreNames.contains('music')) {
-                    const s = db.createObjectStore('music', { keyPath: 'projectId' });
+                    db.createObjectStore('music', { keyPath: 'projectId' });
                   }
                 };
                 req.onsuccess = () => resolve(req.result);
@@ -1088,6 +1086,45 @@ jobs:
             if (window.Android) Android.toast(n + ' — قريباً');
             if (window.Android) Android.vibrate(20);
           }
+
+          function quickTool(type) {
+            const last = state.projects[state.projects.length - 1];
+            if (!last) {
+              if (window.Android) Android.toast('أنشئ مشروعاً أولاً');
+              setTimeout(startNewProject, 300);
+              return;
+            }
+            state.currentProjectId = last.id;
+            if (type === 'aspect') {
+              openProject(last.id);
+              if (window.Android) Android.toast('اختر النسبة من الأزرار');
+              return;
+            }
+            openProject(last.id);
+            setTimeout(() => {
+              openEditor();
+              setTimeout(async () => {
+                if (type === 'text') openOverlayModal();
+                else if (type === 'sticker') openStickerModal();
+                else if (type === 'music') openMusicModal();
+                else {
+                  const clips = await VDB.getClipsByProject(last.id);
+                  if (!clips.length) {
+                    if (window.Android) Android.toast('أضف مقطعاً أولاً');
+                    return;
+                  }
+                  const cid = clips[0].id;
+                  if (type === 'trim') openTrimModal(cid);
+                  else if (type === 'filter') openFilterModal(cid);
+                  else if (type === 'grade') openGradeModal(cid);
+                  else if (type === 'merge') {
+                    if (window.Android) Android.toast('استخدم ◀▶ في الخط الزمني للترتيب');
+                  }
+                }
+              }, 250);
+            }, 250);
+          }
+
           async function clearStorage() {
             if (!confirm('حذف كل البيانات؟')) return;
             try { await VDB.clearAll(); await VDB.clearMusic(); } catch (e) {}
@@ -1119,6 +1156,9 @@ jobs:
             const o = document.querySelector('.loading-overlay');
             if (o) o.classList.add('hidden');
           }
+          function withTimeout(promise, ms, fallback) {
+            return Promise.race([promise, new Promise(r => setTimeout(() => r(fallback), ms))]);
+          }
 
           async function addClipToProject() {
             if (!state.currentProjectId) return;
@@ -1130,10 +1170,20 @@ jobs:
 
           async function processVideoFile(file) {
             if (!file.type.startsWith('video/')) { if (window.Android) Android.toast('ليس فيديو'); return; }
-            showLoading('جارٍ المعالجة...');
+            const sizeMB = file.size / (1024 * 1024);
             try {
-              const dur = await getVideoDuration(file);
-              const thumb = await getVideoThumbnail(file);
+              showLoading('١/٣ قراءة المدة... (' + sizeMB.toFixed(0) + 'MB)', 10);
+              const dur = await withTimeout(getVideoDuration(file), 4000, 0);
+
+              let thumb = '';
+              if (sizeMB < 80) {
+                showLoading('٢/٣ إنشاء صورة مصغرة...', 40);
+                thumb = await withTimeout(getVideoThumbnail(file), 6000, '');
+              } else {
+                showLoading('تخطي الصورة (ملف كبير)', 40);
+              }
+
+              showLoading('٣/٣ حفظ المقطع...', 70);
               const ex = await VDB.getClipsByProject(state.currentProjectId);
               const clip = {
                 id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -1151,7 +1201,8 @@ jobs:
               const p = state.projects.find(x => x.id === state.currentProjectId);
               if (p) { p.clipCount = (p.clipCount || 0) + 1; saveProjects(); }
               await loadClipsForProject(state.currentProjectId);
-              hideLoading();
+              showLoading('اكتمل!', 100);
+              setTimeout(hideLoading, 400);
               if (window.Android) { Android.toast('تمت إضافة المقطع'); Android.vibrate(50); }
             } catch (e) {
               hideLoading();
@@ -1169,24 +1220,39 @@ jobs:
               v.src = u;
             });
           }
+
           function getVideoThumbnail(file) {
-            return new Promise(r => {
-              const u = URL.createObjectURL(file);
+            return new Promise((resolve) => {
+              const url = URL.createObjectURL(file);
               const v = document.createElement('video');
-              v.preload = 'auto'; v.muted = true; v.playsInline = true;
-              const c = () => URL.revokeObjectURL(u);
-              v.onloadeddata = () => { try { v.currentTime = Math.min(1, (v.duration||1)/2); } catch(e){ c(); r(''); } };
-              v.onseeked = () => {
+              v.preload = 'metadata';
+              v.muted = true;
+              v.playsInline = true;
+              let resolved = false;
+              const finish = (data) => {
+                if (resolved) return;
+                resolved = true;
+                try { URL.revokeObjectURL(url); } catch (e) {}
+                resolve(data);
+              };
+              const capture = () => {
                 try {
                   const ca = document.createElement('canvas');
-                  const w = 160, h = Math.round((v.videoHeight/v.videoWidth)*w) || 120;
+                  const w = 200;
+                  const h = Math.round((v.videoHeight / v.videoWidth) * w) || 112;
                   ca.width = w; ca.height = h;
                   ca.getContext('2d').drawImage(v, 0, 0, w, h);
-                  c(); r(ca.toDataURL('image/jpeg', 0.6));
-                } catch(e){ c(); r(''); }
+                  finish(ca.toDataURL('image/jpeg', 0.5));
+                } catch (e) { finish(''); }
               };
-              v.onerror = () => { c(); r(''); };
-              v.src = u;
+              v.onloadedmetadata = () => {
+                const target = Math.min((v.duration || 1) * 0.1, 1);
+                if (Math.abs(v.currentTime - target) < 0.05) capture();
+                else v.currentTime = target;
+              };
+              v.onseeked = capture;
+              v.onerror = () => finish('');
+              v.src = url;
             });
           }
 
@@ -1240,7 +1306,6 @@ jobs:
           __VS_EOF__
 
           cat > app/src/main/assets/js/editor.js << '__VS_EOF__'
-          // ============ المحرر ============
           let previewPlaying = false;
           let previewCancel = false;
           let editingClip = null;
@@ -1445,7 +1510,6 @@ jobs:
               '</div></div>';
           }
 
-          // ============ القص ============
           async function openTrimModal(id) {
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             const c = cs.find(x => x.id === id);
@@ -1487,7 +1551,6 @@ jobs:
             if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ فلتر ============
           async function openFilterModal(id) {
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             const c = cs.find(x => x.id === id);
@@ -1510,7 +1573,6 @@ jobs:
             if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ سرعة ============
           async function openSpeedModal(id) {
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             const c = cs.find(x => x.id === id);
@@ -1533,7 +1595,6 @@ jobs:
             if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ انتقال ============
           async function openTransitionModal(id) {
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             const c = cs.find(x => x.id === id);
@@ -1556,7 +1617,6 @@ jobs:
             if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ تدريج لوني ============
           async function openGradeModal(id) {
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             const c = cs.find(x => x.id === id);
@@ -1594,7 +1654,6 @@ jobs:
             if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ صوت ============
           async function openVolumeModal(id) {
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             const c = cs.find(x => x.id === id);
@@ -1620,7 +1679,6 @@ jobs:
             if (window.Android) { Android.toast('تم'); Android.vibrate(30); }
           }
 
-          // ============ نص ============
           function openOverlayModal() {
             document.getElementById('overlay-text').value = '';
             document.getElementById('overlay-outline').checked = false;
@@ -1652,7 +1710,6 @@ jobs:
             if (window.Android) { Android.toast('تمت الإضافة'); Android.vibrate(30); }
           }
 
-          // ============ ملصق ============
           function openStickerModal() {
             document.getElementById('sticker-animate').checked = false;
             editingSticker = '😀';
@@ -1676,7 +1733,6 @@ jobs:
             if (window.Android) { Android.toast('تمت الإضافة'); Android.vibrate(30); }
           }
 
-          // ============ موسيقى ============
           async function openMusicModal() {
             await renderMusicStatus();
             document.getElementById('music-modal').classList.remove('hidden');
@@ -1719,7 +1775,6 @@ jobs:
             } catch (e) {}
           }
 
-          // ============ قائمة العناصر ============
           function showOverlaysList() {
             const p = state.projects.find(x => x.id === state.currentProjectId);
             const ov = (p && p.overlays) || [];
@@ -1740,7 +1795,6 @@ jobs:
             showOverlaysList();
           }
 
-          // ============ رسم ============
           function getFilterCss(clip) {
             const f = FILTERS[clip.filter || 'none'];
             const cg = clip.colorGrade || { brightness: 1, contrast: 1, saturation: 1 };
@@ -1749,7 +1803,6 @@ jobs:
               'contrast(' + cg.contrast + ') ' +
               'saturate(' + cg.saturation + ')';
           }
-
           function drawVideoFit(ctx, video, w, h) {
             const vw = video.videoWidth || w;
             const vh = video.videoHeight || h;
@@ -1760,7 +1813,6 @@ jobs:
             ctx.fillRect(0, 0, w, h);
             try { ctx.drawImage(video, dx, dy, dw, dh); } catch (e) {}
           }
-
           function drawVignette(ctx, w, h) {
             const g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.2, w/2, h/2, Math.max(w,h)*0.7);
             g.addColorStop(0, 'rgba(0,0,0,0)');
@@ -1768,7 +1820,6 @@ jobs:
             ctx.fillStyle = g;
             ctx.fillRect(0, 0, w, h);
           }
-
           function drawTransition(ctx, clip, elapsed, dur, w, h) {
             const tr = clip.transition;
             if (!tr || tr === 'none') return;
@@ -1782,21 +1833,12 @@ jobs:
             } else if (tr === 'flash') {
               const a = Math.max(0, 1 - Math.min(inP*2, 1)) + Math.max(0, 1 - Math.min(outP*2, 1));
               const al = Math.min(1, a);
-              if (al > 0.01) {
-                ctx.fillStyle = 'rgba(255,255,255,' + al + ')';
-                ctx.fillRect(0, 0, w, h);
-              }
+              if (al > 0.01) { ctx.fillStyle = 'rgba(255,255,255,' + al + ')'; ctx.fillRect(0, 0, w, h); }
             } else if (tr === 'slide') {
               const inOff = (1 - inP) * w;
               const outOff = (1 - outP) * w;
-              if (inP < 1) {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(w - inOff, 0, inOff, h);
-              }
-              if (outP < 1) {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(0, 0, outOff, h);
-              }
+              if (inP < 1) { ctx.fillStyle = '#000'; ctx.fillRect(w - inOff, 0, inOff, h); }
+              if (outP < 1) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, outOff, h); }
             } else if (tr === 'zoom') {
               const a = Math.min(inP, outP);
               ctx.fillStyle = 'rgba(0,0,0,' + (1-a) + ')';
@@ -1807,7 +1849,6 @@ jobs:
               ctx.fillRect(0, 0, w, h);
             }
           }
-
           function drawOverlaysOnCanvas(ctx, overlays, time, w, h) {
             for (const ov of overlays) {
               if (time < ov.startTime || time > ov.endTime) continue;
@@ -1829,18 +1870,15 @@ jobs:
                 ctx.restore();
                 continue;
               }
-
               let x = w/2, y = h/2;
               if (ov.position === 'top') y = h * 0.15;
               else if (ov.position === 'bottom') y = h * 0.85;
               y += offsetY;
-
               ctx.save();
               ctx.globalAlpha = alpha;
               ctx.font = 'bold ' + (ov.size || 48) + 'px system-ui, -apple-system, sans-serif';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-
               if (ov.outline) {
                 ctx.strokeStyle = '#000';
                 ctx.lineWidth = Math.max(2, (ov.size || 48) * 0.08);
@@ -1855,7 +1893,6 @@ jobs:
             }
           }
 
-          // ============ معاينة ============
           async function previewProject() {
             if (previewPlaying) {
               previewCancel = true;
@@ -1873,8 +1910,6 @@ jobs:
             const ov = (p && p.overlays) || [];
             const cs = await VDB.getClipsByProject(state.currentProjectId);
             if (!cs.length) { previewPlaying = false; return; }
-
-            // Music
             try {
               const m = await VDB.getMusic(state.currentProjectId);
               if (m) {
@@ -1884,7 +1919,6 @@ jobs:
                 previewAudio.play().catch(() => {});
               }
             } catch (e) {}
-
             let totalDur = 0;
             for (const c of cs) {
               const sp = c.speed || 1;
@@ -1915,20 +1949,17 @@ jobs:
               v.crossOrigin = 'anonymous';
               v.playbackRate = clip.speed || 1;
               v.volume = clip.volume !== undefined ? clip.volume : 1;
-
               const ts = clip.trimStart || 0;
               const te = clip.trimEnd || clip.duration;
               const sp = clip.speed || 1;
               const dur = Math.max(0.1, (te - ts) / sp);
               let startWall = null;
-
               v.onloadedmetadata = () => { v.currentTime = ts; };
               v.onseeked = () => {
                 startWall = performance.now();
                 v.play().catch(() => {});
                 requestAnimationFrame(draw);
               };
-
               function draw() {
                 if (previewCancel) { v.pause(); URL.revokeObjectURL(u); resolve(); return; }
                 const el = (performance.now() - startWall) / 1000;
@@ -1945,12 +1976,10 @@ jobs:
                 if (el >= dur || v.ended) { v.pause(); URL.revokeObjectURL(u); resolve(); return; }
                 requestAnimationFrame(draw);
               }
-
               v.onerror = () => { URL.revokeObjectURL(u); resolve(); };
             });
           }
 
-          // ============ تصدير ============
           async function exportProject() {
             if (!state.currentProjectId) return;
             if (!window.MediaRecorder) { if (window.Android) Android.toast('غير مدعوم'); return; }
@@ -1964,30 +1993,24 @@ jobs:
               totalDur += Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
             }
             showLoading('التصدير... 0%', 0);
-
             try {
               const meta = await loadVideoMeta(cs[0]);
               const ar = (p && p.aspectRatio) || '16:9';
               const [aw, ah] = ar.split(':').map(Number);
               const width = Math.min(meta.width || 1280, 1280);
               const height = Math.round(width * ah / aw);
-
               const ca = document.createElement('canvas');
               ca.width = width; ca.height = height;
               const ctx = ca.getContext('2d');
               ctx.fillStyle = '#000';
               ctx.fillRect(0, 0, width, height);
-
               const vStream = ca.captureStream(30);
-
               let ac = null, ad = null;
               try {
                 ac = new (window.AudioContext || window.webkitAudioContext)();
                 ad = ac.createMediaStreamDestination();
                 window._vsAC = ac; window._vsAD = ad;
               } catch (e) {}
-
-              // Background music -> audio stream
               let bgAudio = null;
               try {
                 const m = await VDB.getMusic(state.currentProjectId);
@@ -2000,27 +2023,21 @@ jobs:
                   src.connect(ac.destination);
                 }
               } catch (e) {}
-
               let finalStream = vStream;
               if (ad) {
                 finalStream = new MediaStream([...vStream.getVideoTracks(), ...ad.stream.getAudioTracks()]);
               }
-
               let mt = 'video/webm;codecs=vp8,opus';
               if (!MediaRecorder.isTypeSupported(mt)) mt = 'video/webm';
               if (!MediaRecorder.isTypeSupported(mt)) mt = '';
-
               const rec = new MediaRecorder(finalStream, mt
                 ? { mimeType: mt, videoBitsPerSecond: 4_000_000 }
                 : { videoBitsPerSecond: 4_000_000 });
-
               const chunks = [];
               rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
               const done = new Promise(r => { rec.onstop = () => r(new Blob(chunks, { type: 'video/webm' })); });
-
               if (bgAudio) bgAudio.play().catch(() => {});
               rec.start(200);
-
               let acc = 0;
               for (const c of cs) {
                 await exportClipPlayback(c, ctx, ca, ov, acc, totalDur, pct => {
@@ -2029,17 +2046,14 @@ jobs:
                 const sp = c.speed || 1;
                 acc += Math.max(0.1, ((c.trimEnd||c.duration) - (c.trimStart||0)) / sp);
               }
-
               if (bgAudio) bgAudio.pause();
               await new Promise(r => setTimeout(r, 400));
               rec.stop();
               const blob = await done;
               if (ac) ac.close().catch(() => {});
               window._vsAC = null; window._vsAD = null;
-
               const b64 = await blobToBase64(blob);
               hideLoading();
-
               if (window.Android && Android.saveVideo) {
                 Android.saveVideo(b64, 'VideoStudio_' + Date.now() + '.webm', 'video/webm');
               } else {
@@ -2051,7 +2065,6 @@ jobs:
               }
             } catch (err) {
               hideLoading();
-              console.error(err);
               if (window.Android) Android.toast('فشل: ' + err.message);
             }
           }
@@ -2077,27 +2090,23 @@ jobs:
               v.crossOrigin = 'anonymous';
               v.playbackRate = clip.speed || 1;
               v.volume = clip.volume !== undefined ? clip.volume : 1;
-
               if (window._vsAD) {
                 try {
                   const src = window._vsAC.createMediaElementSource(v);
                   src.connect(window._vsAD);
                 } catch (e) {}
               }
-
               const ts = clip.trimStart || 0;
               const te = clip.trimEnd || clip.duration;
               const sp = clip.speed || 1;
               const dur = Math.max(0.1, (te - ts) / sp);
               let startWall = null;
-
               v.onloadedmetadata = () => { v.currentTime = ts; };
               v.onseeked = () => {
                 startWall = performance.now();
                 v.play().catch(() => {});
                 requestAnimationFrame(draw);
               };
-
               function draw() {
                 const el = (performance.now() - startWall) / 1000;
                 ctx.save();
@@ -2113,7 +2122,6 @@ jobs:
                 if (el >= dur || v.ended) { v.pause(); URL.revokeObjectURL(u); resolve(); return; }
                 requestAnimationFrame(draw);
               }
-
               v.onerror = () => { URL.revokeObjectURL(u); resolve(); };
             });
           }
@@ -2143,5 +2151,5 @@ jobs:
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk VideoStudio.apk
           gh release create "v${{ github.run_number }}" VideoStudio.apk \
-            --title "v${{ github.run_number }} — استوديو الفيديو 7.0" \
-            --notes "🎨 20 فلتر + 6 انتقالات + تدريج لوني + Vignette + موسيقى + ملصقات + نسبة عرض"
+            --title "v${{ github.run_number }} — استوديو الفيديو 7.1" \
+            --notes "🔧 إصلاح: أزرار الرئيسية تعمل + معالجة فيديو أسرع 5× + شريط تقدم"
